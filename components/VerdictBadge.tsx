@@ -28,9 +28,9 @@ export default function VerdictBadge({ verdict }: { verdict: Verdict }) {
   const s = STYLES[verdict];
   return (
     <span
-      className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[11px] font-medium uppercase tracking-[0.12em] ${s.bg} ${s.text} ${s.border}`}
+      className={`inline-flex items-center gap-2.5 rounded-full border px-6 py-2.5 text-[11px] font-medium uppercase tracking-[0.14em] ${s.bg} ${s.text} ${s.border}`}
     >
-      <span className={`h-1.5 w-1.5 rounded-full ${s.dot}`} />
+      <span className={`h-6 w-6 rounded-full ${s.dot}`} />
       {s.label}
     </span>
   );

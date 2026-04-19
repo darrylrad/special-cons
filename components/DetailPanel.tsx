@@ -16,10 +16,10 @@ interface DetailPanelProps {
 
 const SCORE_TOOLTIPS: Record<string, string> = {
   Saturation: "How crowded the market is nearby. Higher = less saturated, more room.",
-  Churn: "Rate businesses in this category open and close. Higher = more stable turnover.",
+  Turnover: "Rate businesses in this category open and close. Higher = more stable turnover.",
   Stability: "How long businesses in this category tend to last. Higher = more durable.",
   Diversity: "Variety of surrounding business categories. Higher = healthier ecosystem.",
-  "Red flags": "Aggregated risk signals (sudden closures, trends). Higher = fewer flags.",
+  "Data Reliability": "Aggregated risk signals (sudden closures, trends). Higher = fewer flags.",
 };
 
 function overallTone(score: number) {
@@ -113,7 +113,7 @@ export default function DetailPanel({
       animate={{ x: 0, opacity: 1 }}
       exit={{ x: "100%", opacity: 0 }}
       transition={{ duration: 0.6, ease: [0.4, 0, 0.2, 1] }}
-      className="glass-strong relative z-20 flex h-full w-full flex-col overflow-hidden border-l border-white/5 shadow-panel md:w-[55%]"
+      className="glass-strong relative z-20 flex h-full w-full flex-col overflow-hidden border-l border-white/5 shadow-panel"
     >
       {/* Top bar with back button */}
       <div className="flex items-center justify-between border-b border-white/5 px-6 py-4">
@@ -231,10 +231,10 @@ function ReportBody({
         <SectionHeader index="02">Signal breakdown</SectionHeader>
         <div className="space-y-5">
           <ScoreBar label="Saturation" value={scores.saturation} tooltip={SCORE_TOOLTIPS.Saturation} />
-          <ScoreBar label="Churn" value={scores.churn} tooltip={SCORE_TOOLTIPS.Churn} />
+          <ScoreBar label="Turnover" value={scores.churn} tooltip={SCORE_TOOLTIPS.Turnover} />
           <ScoreBar label="Stability" value={scores.stability} tooltip={SCORE_TOOLTIPS.Stability} />
           <ScoreBar label="Diversity" value={scores.diversity} tooltip={SCORE_TOOLTIPS.Diversity} />
-          <ScoreBar label="Red flags" value={scores.red_flags} tooltip={SCORE_TOOLTIPS["Red flags"]} />
+          <ScoreBar label="Data Reliability" value={scores.red_flags} tooltip={SCORE_TOOLTIPS["Data Reliability"]} />
         </div>
       </section>
 

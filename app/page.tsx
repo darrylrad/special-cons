@@ -285,7 +285,7 @@ export default function HomePage() {
           <motion.div
             key="state-b-panel"
             layout
-            className="fixed inset-0 z-20 md:static md:z-auto md:block md:flex-1"
+            className="fixed inset-0 z-20 md:static md:z-auto md:block md:h-full md:w-[55%]"
             transition={{ duration: 0.6, ease: [0.4, 0, 0.2, 1] }}
           >
             <DetailPanel
