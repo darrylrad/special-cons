@@ -2,13 +2,20 @@
 
 import {
   useEffect,
-  useImperativeHandle,
   useMemo,
   useRef,
   useState,
   type Ref,
 } from "react";
 import GlobeGL from "react-globe.gl";
+
+declare global {
+  interface Window {
+    __gapmapGlobe?: GlobeHandle;
+  }
+}
+
+
 
 export interface GlobePin {
   id: string;
@@ -23,6 +30,7 @@ export interface GlobePin {
 export interface GlobeHandle {
   flyTo: (lat: number, lng: number, altitude?: number) => void;
   resetView: () => void;
+  zoomToLocation: (lat: number, lng: number) => Promise<void>;
 }
 
 interface GlobeProps {
@@ -77,30 +85,106 @@ export default function Globe({
     }
   }, [autoRotate, dims.w, dims.h]);
 
-  useImperativeHandle(
-    forwardedRef,
-    () => ({
-      flyTo(lat, lng, altitude = 0.5) {
-        globeRef.current?.pointOfView({ lat, lng, altitude }, 1500);
-      },
-      resetView() {
-        globeRef.current?.pointOfView(
-          { lat: 25, lng: -40, altitude: 2.2 },
-          1200
-        );
-      },
-    }),
-    []
-  );
+  const [pinsEnabled, setPinsEnabled] = useState(true);
+
+  // Park the imperative handle on window. Bypasses all ref-forwarding
+// complexity with next/dynamic.
+useEffect(() => {
+  const handle: GlobeHandle = {
+    flyTo(lat, lng, altitude = 0.5) {
+      globeRef.current?.pointOfView({ lat, lng, altitude }, 1500);
+    },
+    resetView() {
+      globeRef.current?.pointOfView(
+        { lat: 25, lng: -40, altitude: 2.2 },
+        1200
+      );
+    },
+    async zoomToLocation(lat: number, lng: number) {
+      if (!globeRef.current) return;
+    
+      console.log("[Globe] zoomToLocation: clearing internal pin state");
+      // Imperatively clear three-globe's internal htmlElements array.
+      // Setting the React prop to [] isn't enough — we need to tell three-globe
+      // directly to forget its cached pin objects.
+      try {
+        globeRef.current.htmlElementsData([]);
+      } catch (e) {
+        console.warn("[Globe] couldn't clear htmlElementsData:", e);
+      }
+      setPinsEnabled(false);
+    
+      // Wait for the clear to propagate through three-globe's internal digest cycle
+      //await new Promise((r) => setTimeout(r, 100));
+    
+      console.log("[Globe] zoomToLocation stage 1");
+      globeRef.current.pointOfView(
+        { lat: 40.7, lng: -74.0, altitude: 0.5 },
+        1000
+      );
+      await new Promise((r) => setTimeout(r, 1000));
+    
+      console.log("[Globe] POV after stage 1:", globeRef.current.pointOfView());
+    
+      console.log("[Globe] zoomToLocation stage 2");
+      globeRef.current.pointOfView({ lat, lng, altitude: 0.15 }, 900);
+      await new Promise((r) => setTimeout(r, 900));
+    
+      console.log("[Globe] POV after stage 2:", globeRef.current.pointOfView());
+      console.log("[Globe] zoomToLocation done");
+    },
+  };
+
+  // Also call the imperative handle if one was passed, for compatibility.
+  if (forwardedRef && typeof forwardedRef === "object") {
+    (forwardedRef as React.MutableRefObject<GlobeHandle | null>).current = handle;
+  }
+  window.__gapmapGlobe = handle;
+
+  return () => {
+    if (window.__gapmapGlobe === handle) {
+      window.__gapmapGlobe = undefined;
+    }
+  };
+}, [dims.w, dims.h]);
 
   // Initial camera on mount.
+  const initialPOVSet = useRef(false);
+
+  // Initial controls setup — runs once when dims become valid
   useEffect(() => {
     if (!globeRef.current) return;
-    globeRef.current.pointOfView({ lat: 25, lng: -40, altitude: 2.2 }, 0);
+    if (dims.w === 0 || dims.h === 0) return;
+    const controls = globeRef.current.controls?.();
+    if (controls) {
+      controls.enableZoom = true;
+      controls.autoRotateSpeed = 0.3;
+      controls.minDistance = 180;
+      controls.maxDistance = 700;
+    }
   }, [dims.w, dims.h]);
 
+  // Toggle autoRotate without touching other controls
+  useEffect(() => {
+    const controls = globeRef.current?.controls?.();
+    if (controls) controls.autoRotate = autoRotate;
+  }, [autoRotate]);
+
   // HTML pin markup — we use htmlElementsData so we can style with Tailwind.
-  const htmlElementsData = useMemo(() => pins, [pins]);
+  const htmlElementsData = useMemo(() => {
+    if (!pinsEnabled) return [];
+  
+    return (pins || []).filter(
+      (p) =>
+        p &&
+        typeof p.lat === "number" &&
+        typeof p.lng === "number" &&
+        !Number.isNaN(p.lat) &&
+        !Number.isNaN(p.lng) &&
+        Math.abs(p.lat) <= 90 &&
+        Math.abs(p.lng) <= 180
+    );
+  }, [pins, pinsEnabled]);
 
   return (
     <div

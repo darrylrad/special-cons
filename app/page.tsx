@@ -14,10 +14,18 @@ import { useCompetitors } from "@/src/hooks/useCompetitors";
 import { useToast } from "./providers";
 import type { SearchResult } from "@/src/api";
 
-// Dynamic import — react-globe.gl needs window/WebGL, so ssr must be false.
-// We wrap the dynamic import in a forwardRef bridge because next/dynamic
-// swallows refs otherwise.
+declare global {
+  interface Window {
+    __gapmapGlobe?: import("@/components/Globe").GlobeHandle;
+  }
+}
+
 const DynamicGlobe = dynamic(() => import("@/components/Globe"), {
+  ssr: false,
+  loading: () => <GlobePlaceholder />,
+});
+
+const DynamicCityMap = dynamic(() => import("@/components/CityMap"), {
   ssr: false,
   loading: () => <GlobePlaceholder />,
 });
@@ -25,6 +33,12 @@ const DynamicGlobe = dynamic(() => import("@/components/Globe"), {
 const Globe = forwardRef<GlobeHandle, Omit<ComponentProps<typeof DynamicGlobe>, "forwardedRef">>(
   function Globe(props, ref) {
     return <DynamicGlobe {...props} forwardedRef={ref} />;
+  }
+);
+
+const CityMap = forwardRef<GlobeHandle, Omit<ComponentProps<typeof DynamicCityMap>, "forwardedRef">>(
+  function CityMap(props, ref) {
+    return <DynamicCityMap {...props} forwardedRef={ref} />;
   }
 );
 
@@ -48,6 +62,7 @@ export default function HomePage() {
   const [focused, setFocused] = useState(false);
   const [pulseTick, setPulseTick] = useState(0);
   const [pulsingCompetitorIdx, setPulsingCompetitorIdx] = useState<number | null>(null);
+  const [isTransitioning, setIsTransitioning] = useState(false);
 
   const globeRef = useRef<GlobeHandle | null>(null);
   const { push: pushToast } = useToast();
@@ -70,12 +85,7 @@ export default function HomePage() {
       pushToast((competitors.error as Error).message || "Competitors unavailable");
   }, [competitors.error, pushToast]);
 
-  // Fly to the business once we have coordinates.
-  useEffect(() => {
-    if (!report.data) return;
-    const { latitude, longitude } = report.data.business;
-    globeRef.current?.flyTo(latitude, longitude, 0.5);
-  }, [report.data]);
+
 
   // Build the full set of pins shown on the globe.
   const pins: GlobePin[] = useMemo(() => {
@@ -103,9 +113,37 @@ export default function HomePage() {
     return out;
   }, [report.data, competitors.data, pulsingCompetitorIdx, pulseTick]);
 
-  const handleSelect = (r: SearchResult) => {
-    setSelectedId(r.fsq_place_id);
+  const handleSelect = async (r: SearchResult) => {
     setFocused(false);
+  
+    // Set transitioning FIRST. This keeps the globe mounted even when
+    // detailMode flips to true on the next line.
+    console.log("[select] pins before transition:", pins); //debug
+    setIsTransitioning(true);
+    setSelectedId(r.fsq_place_id);
+  
+    // Give React a tick to process the state updates before we touch the ref.
+    await new Promise((r) => setTimeout(r, 50));
+  
+    try {
+      const report = await (await import("@/src/api")).api.getReport(r.fsq_place_id);
+  
+      console.log("[select] globeRef.current is:", globeRef.current);
+  
+      if (typeof window !== "undefined" && window.__gapmapGlobe?.zoomToLocation) {
+        console.log("[select] starting zoom via window");
+        await window.__gapmapGlobe.zoomToLocation(
+          report.business.latitude,
+          report.business.longitude
+        );
+        console.log("[select] zoom finished");
+        //await new Promise((r) => setTimeout(r, 400)); // slight delay after zoom before showing panel
+      }
+    } catch (e) {
+      console.error("[select] error", e);
+    }
+  
+    setIsTransitioning(false);
   };
 
   const handleBack = () => {
@@ -173,10 +211,56 @@ export default function HomePage() {
       {/* Globe — animates its width container when switching to detail mode */}
       <motion.div
         layout
-        transition={{ duration: 0.6, ease: [0.4, 0, 0.2, 1] }}
+        transition={{ duration: 1, ease: [0.4, 0, 0.2, 1] }}
         className={`relative h-full ${detailMode ? "hidden md:block md:w-[45%]" : "w-full"}`}
       >
-        <Globe ref={globeRef} pins={pins} autoRotate={!detailMode} compact={detailMode} />
+
+          <AnimatePresence mode="sync">
+            {detailMode && !isTransitioning ? (
+              <motion.div
+                key="map"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
+                className="h-full w-full absolute inset-0"
+              >
+                <CityMap
+                  ref={globeRef}
+                  pins={pins}
+                  center={
+                    report.data
+                      ? {
+                          lat: report.data.business.latitude,
+                          lng: report.data.business.longitude,
+                          zoom: 15,
+                        }
+                      : undefined
+                  }
+                />
+              </motion.div>
+            ) : (
+              <motion.div
+                key="globe"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{
+                  duration: 0.3,
+                  ease: [0.4, 0, 0.2, 1]
+                }}
+                className="h-full w-full absolute inset-0"
+              >
+                <Globe
+                  ref={globeRef}
+                  pins={[]}
+                  autoRotate={!detailMode && !isTransitioning}
+                  compact={detailMode}
+                />
+              </motion.div>
+            )}
+          </AnimatePresence>
+        
 
         {/* State A — Search overlay */}
         <AnimatePresence>
