@@ -17,9 +17,26 @@ def search():
     query = request.args.get('q', '')
     city = request.args.get('city', '')
 
-    results = df[df['name'].str.contains(query, case=False, na=False)]
+    mask = (
+    df['name'].str.contains(query, case=False, na=False) |
+    df['locality'].str.contains(query, case=False, na=False) |
+    df['level2'].str.contains(query, case=False, na=False)
+)
+    results = df[mask]
     if city:
         results = results[results['locality'].str.contains(city, case=False, na=False)]
+
+    #debug
+    total_matches = len(results)
+    name_hits = df['name'].str.contains(query, case=False, na=False).sum()
+    loc_hits = df['locality'].str.contains(query, case=False, na=False).sum()
+    cat_hits = df['level2'].str.contains(query, case=False, na=False).sum()
+    print(
+        f"[search] q={query!r} city={city!r} | "
+        f"name={name_hits} locality={loc_hits} category={cat_hits} "
+        f"→ total={total_matches}, returning={min(total_matches, 10)}"
+    )
+    #debug end
 
     results = results.head(10)[['fsq_place_id', 'name', 'address', 'locality', 'zip_clean', 'level2', 'latitude', 'longitude']]
     return jsonify(results.to_dict('records'))
@@ -85,4 +102,4 @@ def competitors(place_id):
 
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    app.run(debug=True, port=5001)
