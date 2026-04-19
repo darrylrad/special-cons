@@ -72,9 +72,9 @@ interface RawReport {
   scores: {
     saturation: number;
     churn: number;
-    stability: number;
+
     diversity: number;
-    red_flags: number;
+
   };
   details: {
     // Backend sends these names; frontend wants competitors_nearby,
@@ -89,12 +89,20 @@ interface RawReport {
 }
 
 interface RawCompetitor {
+  fsq_place_id: string;
   name: string;
   address: string;
   latitude: number;
   longitude: number;
   date_created: string;
   level3?: string;
+  overall_score?: number;
+  verdict?: string;
+  saturation_score?: number;
+  churn_score?: number;
+
+  diversity_score?: number;
+
 }
 
 function normalizeSearch(raw: RawSearchResult): SearchResult {
@@ -130,9 +138,9 @@ function normalizeReport(raw: RawReport): Report {
     scores: {
       saturation: Number(raw.scores.saturation) || 0,
       churn: Number(raw.scores.churn) || 0,
-      stability: Number(raw.scores.stability) || 0,
+
       diversity: Number(raw.scores.diversity) || 0,
-      red_flags: Number(raw.scores.red_flags) || 0,
+
     },
     details: {
       competitors_nearby: Number(raw.details.competitors_in_zip ?? 0),
@@ -144,12 +152,29 @@ function normalizeReport(raw: RawReport): Report {
 }
 
 function normalizeCompetitor(raw: RawCompetitor): Competitor {
+  const hasScores =
+    raw.saturation_score !== undefined ||
+    raw.overall_score !== undefined;
+
   return {
+    fsq_place_id: raw.fsq_place_id,
     name: raw.name ?? "",
     address: raw.address ?? "",
     latitude: Number(raw.latitude),
     longitude: Number(raw.longitude),
     date_created: raw.date_created ?? "",
+    overall_score:
+      raw.overall_score !== undefined ? Number(raw.overall_score) : undefined,
+    verdict: raw.verdict as any,
+    scores: hasScores
+      ? {
+          saturation: Number(raw.saturation_score ?? 0),
+          churn: Number(raw.churn_score ?? 0),
+
+          diversity: Number(raw.diversity_score ?? 0),
+
+        }
+      : undefined,
   };
 }
 

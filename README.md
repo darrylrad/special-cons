@@ -262,6 +262,14 @@ Mission-control dark UI — near-black `#0a0a0f` canvas, electric cyan accents, 
 
 ---
 
+---
+
+## Acknowledgments
+
+This project was built in a pair-programming flow with [Claude](https://claude.ai) by Anthropic. Claude scaffolded the initial frontend architecture, wrote the API client and normalization layer, designed the mission-control UI system, and helped debug through a few memorable rabbit holes (AirPlay squatting on port 5000, pandas NaN in JSON output, the three-globe `isBehindGlobe` crash, and a ref-timing bug that ate an hour before we found it). All the product direction, data pipeline, scoring methodology, and "this feels right / this doesn't" judgment was human-driven.
+
+Built with Claude Opus 4.7.
+
 ## Out of scope (Phase 1)
 
 - Accounts, saved searches, PDF export

@@ -32,9 +32,9 @@ export interface ReportBusiness {
 export interface ReportScores {
   saturation: number;
   churn: number;
-  stability: number;
+
   diversity: number;
-  red_flags: number;
+
 }
 
 export interface ReportDetails {
@@ -52,12 +52,24 @@ export interface Report {
   details: ReportDetails;
 }
 
+export interface CompetitorScores {
+  saturation: number;
+  churn: number;
+
+  diversity: number;
+
+}
+
 export interface Competitor {
+  fsq_place_id: string;
   name: string;
   address: string;
   latitude: number;
   longitude: number;
-  date_created: string; // ISO date
+  date_created: string;
+  overall_score?: number;
+  verdict?: Verdict;
+  scores?: CompetitorScores;
 }
 
 // Unified shape for any function in the API client.

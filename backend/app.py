@@ -165,9 +165,9 @@ def report(place_id):
         'scores': {
             'saturation': f('saturation_score', 0, 1),
             'churn': f('churn_score', 0, 1),
-            'stability': f('stability_score', 0, 1),
+
             'diversity': f('diversity_score', 0, 1),
-            'red_flags': f('red_flag_score', 0, 1),
+
         },
         'details': {
             'competitors_in_zip': i('same_category_count_zip'),
@@ -182,7 +182,7 @@ def report(place_id):
 
 
 # ---------------------------------------------------------------------------
-# Endpoint 4: Get nearby competitors (unchanged logic, shared NaN cleanup)
+# Endpoint 4: Get nearby competitors (now with scores for popup)
 # ---------------------------------------------------------------------------
 @app.route('/api/competitors/<place_id>')
 def competitors(place_id):
@@ -195,7 +195,14 @@ def competitors(place_id):
         (df['fsq_place_id'] != place_id) &
         (df['level2'] == b['level2']) &
         (df['zip_clean'] == b['zip_clean'])
-    ][['name', 'address', 'latitude', 'longitude', 'date_created', 'level3']].head(20)
+    ][[
+        'fsq_place_id', 'name', 'address', 'latitude', 'longitude',
+        'date_created', 'level3',
+        # Score data for the map popup
+        'overall_score', 'verdict',
+        'saturation_score', 'churn_score', 
+        'diversity_score', 
+    ]].head(20)
 
     return jsonify(_clean_nan(nearby.to_dict('records')))
 

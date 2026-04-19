@@ -23,8 +23,20 @@ export interface GlobePin {
   lng: number;
   kind: "target" | "competitor";
   label?: string;
-  // transient highlight trigger
   pulseAt?: number;
+  // Popup data — for competitors only
+  popup?: {
+    name: string;
+    overallScore?: number;
+    verdict?: "PROCEED" | "PROCEED WITH CAUTION" | "AVOID";
+    scores?: {
+      saturation: number;
+      churn: number;
+
+      diversity: number;
+
+    };
+  };
 }
 
 export interface GlobeHandle {
