@@ -1,4 +1,5 @@
 from flask import Flask, jsonify, request
+import math
 from flask_cors import CORS
 import pandas as pd
 
@@ -38,11 +39,24 @@ def search():
     )
     #debug end
 
-    results = results.head(10)[['fsq_place_id', 'name', 'address', 'locality', 'zip_clean', 'level2', 'latitude', 'longitude']]
-    return jsonify(results.to_dict('records'))
+    results = results.head(10)[
+        ['fsq_place_id', 'name', 'address', 'locality', 'region',
+         'zip_clean', 'level2', 'latitude', 'longitude']
+    ]
+    # Replace NaN with None before jsonify — NaN is not valid JSON.
+    # Convert to records then clean NaN per-field. Pandas can't store None in
+    # numeric columns — it coerces back to NaN — so we must clean after converting.
+
+    records = results.to_dict('records')
+    for row in records:
+        for k, v in row.items():
+            if isinstance(v, float) and math.isnan(v):
+                row[k] = None
+    return jsonify(records)
 
 
-# Endpoint 2: Get full risk report
+
+# Endpoint 2: Get full risk reports
 @app.route('/api/report/<place_id>')
 def report(place_id):
     biz = df[df['fsq_place_id'] == place_id]
@@ -97,8 +111,13 @@ def competitors(place_id):
         (df['level2'] == b['level2']) &
         (df['zip_clean'] == b['zip_clean'])
     ][['name', 'address', 'latitude', 'longitude', 'date_created', 'level3']].head(20)
-
-    return jsonify(nearby.to_dict('records'))
+    import math
+    records = nearby.to_dict('records')
+    for row in records:
+        for k, v in row.items():
+            if isinstance(v, float) and math.isnan(v):
+                row[k] = None
+    return jsonify(records)
 
 
 if __name__ == '__main__':
