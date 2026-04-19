@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { forwardRef, useEffect, useMemo, useRef, useState, type ComponentProps} from "react";
 import dynamic from "next/dynamic";
 import { AnimatePresence, motion } from "framer-motion";
 import SearchPill from "@/components/SearchPill";
@@ -14,11 +14,19 @@ import { useCompetitors } from "@/src/hooks/useCompetitors";
 import { useToast } from "./providers";
 import type { SearchResult } from "@/src/api";
 
-// react-globe.gl relies on window/WebGL — never server-render it.
-const Globe = dynamic(() => import("@/components/Globe"), {
+// Dynamic import — react-globe.gl needs window/WebGL, so ssr must be false.
+// We wrap the dynamic import in a forwardRef bridge because next/dynamic
+// swallows refs otherwise.
+const DynamicGlobe = dynamic(() => import("@/components/Globe"), {
   ssr: false,
   loading: () => <GlobePlaceholder />,
 });
+
+const Globe = forwardRef<GlobeHandle, Omit<ComponentProps<typeof DynamicGlobe>, "forwardedRef">>(
+  function Globe(props, ref) {
+    return <DynamicGlobe {...props} forwardedRef={ref} />;
+  }
+);
 
 function GlobePlaceholder() {
   return (

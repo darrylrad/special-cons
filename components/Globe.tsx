@@ -1,12 +1,12 @@
 "use client";
 
 import {
-  forwardRef,
   useEffect,
   useImperativeHandle,
   useMemo,
   useRef,
   useState,
+  type Ref,
 } from "react";
 import GlobeGL from "react-globe.gl";
 
@@ -29,6 +29,9 @@ interface GlobeProps {
   pins: GlobePin[];
   autoRotate: boolean;
   compact: boolean; // true once a result is selected
+  // next/dynamic strips refs, so we pass one through as a plain prop from the
+  // forwardRef bridge in page.tsx.
+  forwardedRef?: Ref<GlobeHandle>;
 }
 
 // Dark, moody globe styling — built from flat hex colors so we don't need to
@@ -38,10 +41,12 @@ const GLOBE_IMAGE_URL =
 const BUMP_IMAGE_URL =
   "//unpkg.com/three-globe/example/img/earth-topology.png";
 
-const Globe = forwardRef<GlobeHandle, GlobeProps>(function Globe(
-  { pins, autoRotate, compact },
-  ref
-) {
+export default function Globe({
+  pins,
+  autoRotate,
+  compact,
+  forwardedRef,
+}: GlobeProps) {
   const globeRef = useRef<any>(null);
   const [dims, setDims] = useState({ w: 0, h: 0 });
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -73,7 +78,7 @@ const Globe = forwardRef<GlobeHandle, GlobeProps>(function Globe(
   }, [autoRotate, dims.w, dims.h]);
 
   useImperativeHandle(
-    ref,
+    forwardedRef,
     () => ({
       flyTo(lat, lng, altitude = 0.5) {
         globeRef.current?.pointOfView({ lat, lng, altitude }, 1500);
@@ -173,6 +178,4 @@ const Globe = forwardRef<GlobeHandle, GlobeProps>(function Globe(
       )}
     </div>
   );
-});
-
-export default Globe;
+}
