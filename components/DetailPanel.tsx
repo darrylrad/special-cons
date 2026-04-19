@@ -232,9 +232,9 @@ function ReportBody({
         <div className="space-y-5">
           <ScoreBar label="Saturation" value={scores.saturation} tooltip={SCORE_TOOLTIPS.Saturation} />
           <ScoreBar label="Turnover" value={scores.churn} tooltip={SCORE_TOOLTIPS.Turnover} />
-          <ScoreBar label="Stability" value={scores.stability} tooltip={SCORE_TOOLTIPS.Stability} />
+
           <ScoreBar label="Diversity" value={scores.diversity} tooltip={SCORE_TOOLTIPS.Diversity} />
-          <ScoreBar label="Data Reliability" value={scores.red_flags} tooltip={SCORE_TOOLTIPS["Data Reliability"]} />
+
         </div>
       </section>
 
