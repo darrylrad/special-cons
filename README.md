@@ -1,4 +1,4 @@
-# GapMap — Phase 1 (Frontend MVP)
+# Acquira — Phase 1 (Frontend MVP)
 
 A pre-investment market risk screener. Search a U.S. small business, see a risk verdict, signal breakdown, nearby competitors, and all of it anchored on an interactive 3D globe.
 
@@ -91,7 +91,7 @@ brew install git-lfs
 
 ## Mock → real swap
 
-The mock and real clients expose an **identical** `GapMapApi` interface (see `src/api/types.ts`). To switch:
+The mock and real clients expose an **identical** `AcquiraApi` interface (see `src/api/types.ts`). To switch:
 
 ```env
 # .env.local

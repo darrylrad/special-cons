@@ -280,7 +280,7 @@ function ReportBody({
       </section>
 
       <footer className="mono pb-4 pt-2 text-center text-[10px] uppercase tracking-[0.2em] text-slate-700">
-        GapMap · risk screen v0.1
+        Acquira · risk screen v0.1
       </footer>
     </div>
   );

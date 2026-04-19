@@ -16,7 +16,7 @@ const jetbrains = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "GapMap — pre-investment market risk screener",
+  title: "Acquira — pre-investment market risk screener",
   description:
     "Screen the market risk of any U.S. small business before you buy. Saturation, churn, stability, diversity, red flags — in one verdict.",
 };

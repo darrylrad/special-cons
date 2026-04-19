@@ -1,6 +1,6 @@
 import type {
   Competitor,
-  GapMapApi,
+  AcquiraApi,
   Report,
   SearchResult,
   Verdict,
@@ -173,7 +173,7 @@ function matchesQuery(b: MockBusiness, query: string, city?: string) {
   return queryMatches && b.result.locality.toLowerCase().includes(city.trim().toLowerCase());
 }
 
-export const mockApi: GapMapApi = {
+export const mockApi: AcquiraApi = {
   async search(query, city) {
     await delay(jitter());
     // Explicit error path for testing.

@@ -125,7 +125,7 @@ export default function CityMap({ pins, forwardedRef, center }: CityMapProps) {
 
         const icon = L.divIcon({
           html,
-          className: "gapmap-pin",
+          className: "Acquira-pin",
           iconSize: [isTarget ? 40 : 20, isTarget ? 40 : 20],
           iconAnchor: [isTarget ? 20 : 10, isTarget ? 20 : 10],
         });
@@ -143,7 +143,7 @@ export default function CityMap({ pins, forwardedRef, center }: CityMapProps) {
               permanent: true,
               direction: "bottom",
               offset: [0, 12],
-              className: "gapmap-target-label",
+              className: "Acquira-target-label",
             })
             .openTooltip();
         }
@@ -189,11 +189,11 @@ export default function CityMap({ pins, forwardedRef, center }: CityMapProps) {
       {/* Style overrides for Leaflet's built-in controls so they match our UI.
           Scoped via :global so we can hit Leaflet's generated classNames. */}
       <style jsx global>{`
-        .gapmap-pin {
+        .Acquira-pin {
           background: transparent !important;
           border: none !important;
         }
-        .gapmap-target-label {
+        .Acquira-target-label {
           background: rgba(15, 15, 22, 0.9) !important;
           backdrop-filter: blur(8px);
           border: 1px solid rgba(255, 255, 255, 0.1) !important;
@@ -208,7 +208,7 @@ export default function CityMap({ pins, forwardedRef, center }: CityMapProps) {
           box-shadow: none !important;
           white-space: nowrap;
         }
-        .gapmap-target-label::before {
+        .Acquira-target-label::before {
           display: none !important;
         }
         .leaflet-container {
