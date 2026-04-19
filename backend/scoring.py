@@ -54,11 +54,10 @@ biz[score_cols] = biz[score_cols].fillna(50)
 
 # Overall score (weighted)
 biz['overall_score'] = (
-    biz['saturation_score'] * 0.25 +
-    biz['churn_score'] * 0.25 +
-    biz['stability_score'] * 0.20 +
-    biz['red_flag_score'] * 0.15 +
-    biz['diversity_score'] * 0.15
+    biz['saturation_score'] * 0.23 +
+    biz['churn_score'] * 0.6 +
+    biz['stability_score'] * 0.0 +
+    biz['diversity_score'] * 0.16
 )
 
 # Verdict
