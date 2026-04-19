@@ -1,0 +1,100 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  background-color: #0a0a0f;
+}
+
+/* Thin, subtle scrollbars that match the mission-control feel */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+@layer utilities {
+  /* Glass surface used across the search pill and detail panel */
+  .glass {
+    background: rgba(20, 20, 29, 0.55);
+    backdrop-filter: blur(14px) saturate(140%);
+    -webkit-backdrop-filter: blur(14px) saturate(140%);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .glass-strong {
+    background: rgba(15, 15, 22, 0.82);
+    backdrop-filter: blur(20px) saturate(160%);
+    -webkit-backdrop-filter: blur(20px) saturate(160%);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  /* Faint dotted grid, very low contrast — atmosphere only */
+  .bg-grid {
+    background-image:
+      radial-gradient(rgba(255, 255, 255, 0.06) 1px, transparent 1px);
+    background-size: 28px 28px;
+  }
+
+  /* Shimmer used in loading skeletons */
+  .shimmer {
+    background: linear-gradient(
+      100deg,
+      rgba(255, 255, 255, 0.03) 30%,
+      rgba(255, 255, 255, 0.08) 50%,
+      rgba(255, 255, 255, 0.03) 70%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 2s linear infinite;
+  }
+
+  .mono {
+    font-family: var(--font-jetbrains), ui-monospace, SFMono-Regular, monospace;
+    font-feature-settings: "ss01" on, "cv01" on;
+  }
+
+  /* Radial halo behind the globe */
+  .globe-halo::before {
+    content: "";
+    position: absolute;
+    inset: -10%;
+    background: radial-gradient(
+      closest-side,
+      rgba(0, 183, 255, 0.18),
+      transparent 70%
+    );
+    pointer-events: none;
+    z-index: 0;
+  }
+}
+
+/* Focus ring tuned for dark UI */
+*:focus-visible {
+  outline: 2px solid rgba(56, 209, 255, 0.7);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Framer Motion layout animations look better when transforms don't bleed */
+[data-motion-root] {
+  transform-style: preserve-3d;
+}
