@@ -1,6 +1,6 @@
 import type {
   Competitor,
-  GapMapApi,
+  AcquiraApi,
   Report,
   SearchResult,
 } from "./types";
@@ -155,7 +155,7 @@ function normalizeCompetitor(raw: RawCompetitor): Competitor {
 
 // -----------------------------------------------------------------------------
 
-export const realApi: GapMapApi = {
+export const realApi: AcquiraApi = {
   async search(query, filters) {
     const params = new URLSearchParams();
     if (query) params.set("q", query);

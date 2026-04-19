@@ -68,7 +68,7 @@ export interface SearchFilters {
   maxYears?: number;
 }
 
-export interface GapMapApi {
+export interface AcquiraApi {
   search(query: string, filters?: SearchFilters): Promise<SearchResult[]>;
   getCategories(): Promise<string[]>;
   getReport(placeId: string): Promise<Report>;

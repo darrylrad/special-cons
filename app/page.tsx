@@ -16,7 +16,7 @@ import type { SearchResult, SearchFilters } from "@/src/api";
 
 declare global {
   interface Window {
-    __gapmapGlobe?: import("@/components/Globe").GlobeHandle;
+    __AcquiraGlobe?: import("@/components/Globe").GlobeHandle;
   }
 }
 
@@ -142,8 +142,8 @@ export default function HomePage() {
     try {
       const report = await (await import("@/src/api")).api.getReport(r.fsq_place_id);
 
-      if (typeof window !== "undefined" && window.__gapmapGlobe?.zoomToLocation) {
-        await window.__gapmapGlobe.zoomToLocation(
+      if (typeof window !== "undefined" && window.__AcquiraGlobe?.zoomToLocation) {
+        await window.__AcquiraGlobe.zoomToLocation(
           report.business.latitude,
           report.business.longitude
         );
