@@ -27,6 +27,19 @@ pnpm dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
+This project uses Git LFS for large data files (for example .csv and .parquet).
+Before cloning or pulling large files, make sure Git LFS is installed and initialized:
+
+```bash
+git lfs install
+git lfs pull
+```
+
+For MacOS, you can install with:
+```bash
+brew install git-lfs
+```
+
 ### Environment variables
 
 | Var | Default | Purpose |
