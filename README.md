@@ -40,6 +40,30 @@ For MacOS, you can install with:
 brew install git-lfs
 ```
 
+# Backend Setup
+
+## Install Dependencies
+```bash
+pip3 install -r requirements.txt
+```
+## Start API
+```bash
+cd backend
+python3 app.py
+```
+API runs at `http://localhost:5000`
+
+## Endpoints
+
+| Method | URL | Description |
+|--------|-----|-------------|
+| GET | `/api/search?q=pizza&city=Brooklyn` | Search businesses by name |
+| GET | `/api/report/{place_id}` | Get full risk report |
+| GET | `/api/competitors/{place_id}` | Get nearby competitors |
+
+## How scores were generated (for reference)
+See `scoring.py` — reads from parquet files and produces `scored_businesses.csv`.
+
 ### Environment variables
 
 | Var | Default | Purpose |
