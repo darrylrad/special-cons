@@ -10,6 +10,12 @@ export interface SearchResult {
   locality: string;
   region: string;
   postcode: string;
+  // New fields returned by the updated backend
+  level1?: string;
+  level2?: string;
+  overall_score?: number;
+  verdict?: Verdict;
+  age_years?: number;
 }
 
 export interface ReportBusiness {
@@ -55,12 +61,19 @@ export interface Competitor {
 }
 
 // Unified shape for any function in the API client.
+export interface SearchFilters {
+  city?: string;
+  category?: string;
+  minYears?: number;
+  maxYears?: number;
+}
+
 export interface GapMapApi {
-  search(query: string, city?: string): Promise<SearchResult[]>;
+  search(query: string, filters?: SearchFilters): Promise<SearchResult[]>;
+  getCategories(): Promise<string[]>;
   getReport(placeId: string): Promise<Report>;
   getCompetitors(placeId: string): Promise<Competitor[]>;
 }
-
 // Custom error class so components can distinguish API errors from generic ones.
 export class ApiError extends Error {
   status: number;

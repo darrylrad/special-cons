@@ -44,9 +44,13 @@ interface RawSearchResult {
   region?: string;
   zip_clean?: string | number;
   postcode?: string;
+  level1?: string;
   level2?: string;
   latitude?: number;
   longitude?: number;
+  overall_score?: number;
+  verdict?: string;
+  age_years?: number;
 }
 
 interface RawReport {
@@ -99,9 +103,13 @@ function normalizeSearch(raw: RawSearchResult): SearchResult {
     name: raw.name ?? "",
     address: raw.address ?? "",
     locality: raw.locality ?? "",
-    // Backend's search endpoint doesn't return region — fall back to empty.
     region: raw.region ?? "",
     postcode: String(raw.postcode ?? raw.zip_clean ?? ""),
+    level1: raw.level1,
+    level2: raw.level2,
+    overall_score: raw.overall_score,
+    verdict: raw.verdict as any,
+    age_years: raw.age_years,
   };
 }
 
@@ -148,13 +156,20 @@ function normalizeCompetitor(raw: RawCompetitor): Competitor {
 // -----------------------------------------------------------------------------
 
 export const realApi: GapMapApi = {
-  async search(query, city) {
-    const params = new URLSearchParams({ q: query });
-    if (city) params.set("city", city);
+  async search(query, filters) {
+    const params = new URLSearchParams();
+    if (query) params.set("q", query);
+    if (filters?.city) params.set("city", filters.city);
+    if (filters?.category) params.set("category", filters.category);
+    if (filters?.minYears !== undefined) params.set("min_years", String(filters.minYears));
+    if (filters?.maxYears !== undefined) params.set("max_years", String(filters.maxYears));
     const raw = await request<RawSearchResult[]>(
       `/api/search?${params.toString()}`
     );
     return raw.map(normalizeSearch);
+  },
+  async getCategories() {
+    return request<string[]>(`/api/categories`);
   },
   async getReport(placeId) {
     const raw = await request<RawReport>(
