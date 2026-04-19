@@ -4,15 +4,15 @@ import { forwardRef, useEffect, useMemo, useRef, useState, type ComponentProps} 
 import dynamic from "next/dynamic";
 import { AnimatePresence, motion } from "framer-motion";
 import SearchPill from "@/components/SearchPill";
-import FilterChips from "@/components/FilterChips";
+import FilterChips, { YEAR_MAX } from "@/components/FilterChips";
 import ResultsDropdown from "@/components/ResultsDropdown";
 import DetailPanel from "@/components/DetailPanel";
 import type { GlobeHandle, GlobePin } from "@/components/Globe";
-import { useSearch } from "@/src/hooks/useSearch";
+import { useSearch, hasActiveFilters as computeHasFilters } from "@/src/hooks/useSearch";
 import { useReport } from "@/src/hooks/useReport";
 import { useCompetitors } from "@/src/hooks/useCompetitors";
 import { useToast } from "./providers";
-import type { SearchResult } from "@/src/api";
+import type { SearchResult, SearchFilters } from "@/src/api";
 
 declare global {
   interface Window {
@@ -56,8 +56,14 @@ function GlobePlaceholder() {
 }
 
 export default function HomePage() {
+  // ---- Search state ----------------------------------------------------------
   const [query, setQuery] = useState("");
   const [city, setCity] = useState("");
+  const [category, setCategory] = useState("");
+  const [minYears, setMinYears] = useState(0);
+  const [maxYears, setMaxYears] = useState(YEAR_MAX);
+
+  // ---- UI state --------------------------------------------------------------
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [focused, setFocused] = useState(false);
   const [pulseTick, setPulseTick] = useState(0);
@@ -67,7 +73,22 @@ export default function HomePage() {
   const globeRef = useRef<GlobeHandle | null>(null);
   const { push: pushToast } = useToast();
 
-  const search = useSearch(query, city);
+  // ---- Build the filters object passed to the API -------------------------
+  const filters: SearchFilters = useMemo(
+    () => ({
+      city: city.trim() || undefined,
+      category: category || undefined,
+      minYears: minYears > 0 ? minYears : undefined,
+      maxYears: maxYears < YEAR_MAX ? maxYears : undefined,
+    }),
+    [city, category, minYears, maxYears]
+  );
+
+  // Any filter active (query text counts too) = dropdown will actually fetch.
+  const filtersActive = computeHasFilters(query, filters, YEAR_MAX);
+
+  // ---- Data hooks ------------------------------------------------------------
+  const search = useSearch(query, filters, filtersActive);
   const report = useReport(selectedId);
   const competitors = useCompetitors(selectedId);
 
@@ -85,9 +106,7 @@ export default function HomePage() {
       pushToast((competitors.error as Error).message || "Competitors unavailable");
   }, [competitors.error, pushToast]);
 
-
-
-  // Build the full set of pins shown on the globe.
+  // Build the full set of pins shown on the globe/map.
   const pins: GlobePin[] = useMemo(() => {
     const out: GlobePin[] = [];
     if (report.data) {
@@ -115,40 +134,34 @@ export default function HomePage() {
 
   const handleSelect = async (r: SearchResult) => {
     setFocused(false);
-  
-    // Set transitioning FIRST. This keeps the globe mounted even when
-    // detailMode flips to true on the next line.
-    console.log("[select] pins before transition:", pins); //debug
     setIsTransitioning(true);
     setSelectedId(r.fsq_place_id);
-  
-    // Give React a tick to process the state updates before we touch the ref.
-    await new Promise((r) => setTimeout(r, 50));
-  
+
+    await new Promise((res) => setTimeout(res, 50));
+
     try {
       const report = await (await import("@/src/api")).api.getReport(r.fsq_place_id);
-  
-      console.log("[select] globeRef.current is:", globeRef.current);
-  
+
       if (typeof window !== "undefined" && window.__gapmapGlobe?.zoomToLocation) {
-        console.log("[select] starting zoom via window");
         await window.__gapmapGlobe.zoomToLocation(
           report.business.latitude,
           report.business.longitude
         );
-        console.log("[select] zoom finished");
-        //await new Promise((r) => setTimeout(r, 400)); // slight delay after zoom before showing panel
       }
     } catch (e) {
       console.error("[select] error", e);
     }
-  
+
     setIsTransitioning(false);
   };
 
   const handleBack = () => {
     setSelectedId(null);
     setQuery("");
+    setCity("");
+    setCategory("");
+    setMinYears(0);
+    setMaxYears(YEAR_MAX);
     setPulsingCompetitorIdx(null);
     globeRef.current?.resetView();
   };
@@ -156,16 +169,14 @@ export default function HomePage() {
   const handlePulseCompetitor = (index: number) => {
     setPulsingCompetitorIdx(index);
     setPulseTick(Date.now());
-    // Also fly to that competitor for quick reference.
     const c = competitors.data?.[index];
     if (c) globeRef.current?.flyTo(c.latitude, c.longitude, 0.4);
     setTimeout(() => setPulsingCompetitorIdx(null), 1600);
   };
 
-  const showDropdown =
-    focused &&
-    query.trim().length > 0 &&
-    !detailMode;
+  // Dropdown opens whenever the search area has focus and we're not in detail mode.
+  // The dropdown component itself handles the empty state ("start typing or pick a filter").
+  const showDropdown = (focused || filtersActive) && !detailMode;
 
   return (
     <main className="relative flex h-screen w-screen overflow-hidden bg-ink-950">
@@ -214,53 +225,51 @@ export default function HomePage() {
         transition={{ duration: 1, ease: [0.4, 0, 0.2, 1] }}
         className={`relative h-full ${detailMode ? "hidden md:block md:w-[45%]" : "w-full"}`}
       >
-
-          <AnimatePresence mode="sync">
-            {detailMode && !isTransitioning ? (
-              <motion.div
-                key="map"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
-                className="h-full w-full absolute inset-0"
-              >
-                <CityMap
-                  ref={globeRef}
-                  pins={pins}
-                  center={
-                    report.data
-                      ? {
-                          lat: report.data.business.latitude,
-                          lng: report.data.business.longitude,
-                          zoom: 15,
-                        }
-                      : undefined
-                  }
-                />
-              </motion.div>
-            ) : (
-              <motion.div
-                key="globe"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{
-                  duration: 0.3,
-                  ease: [0.4, 0, 0.2, 1]
-                }}
-                className="h-full w-full absolute inset-0"
-              >
-                <Globe
-                  ref={globeRef}
-                  pins={[]}
-                  autoRotate={!detailMode && !isTransitioning}
-                  compact={detailMode}
-                />
-              </motion.div>
-            )}
-          </AnimatePresence>
-        
+        <AnimatePresence mode="sync">
+          {detailMode && !isTransitioning ? (
+            <motion.div
+              key="map"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
+              className="h-full w-full absolute inset-0"
+            >
+              <CityMap
+                ref={globeRef}
+                pins={pins}
+                center={
+                  report.data
+                    ? {
+                        lat: report.data.business.latitude,
+                        lng: report.data.business.longitude,
+                        zoom: 15,
+                      }
+                    : undefined
+                }
+              />
+            </motion.div>
+          ) : (
+            <motion.div
+              key="globe"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{
+                duration: 0.3,
+                ease: [0.4, 0, 0.2, 1]
+              }}
+              className="h-full w-full absolute inset-0"
+            >
+              <Globe
+                ref={globeRef}
+                pins={[]}
+                autoRotate={!detailMode && !isTransitioning}
+                compact={detailMode}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* State A — Search overlay */}
         <AnimatePresence>
@@ -303,7 +312,18 @@ export default function HomePage() {
                     onFocus={() => setFocused(true)}
                     onBlur={() => setTimeout(() => setFocused(false), 150)}
                   />
-                  <FilterChips city={city} onCityChange={setCity} />
+                  <FilterChips
+                    city={city}
+                    onCityChange={setCity}
+                    category={category}
+                    onCategoryChange={setCategory}
+                    minYears={minYears}
+                    maxYears={maxYears}
+                    onYearRangeChange={(min, max) => {
+                      setMinYears(min);
+                      setMaxYears(max);
+                    }}
+                  />
                 </motion.div>
 
                 <div className="relative mt-3">
@@ -312,7 +332,7 @@ export default function HomePage() {
                       <ResultsDropdown
                         results={search.data || []}
                         loading={search.isFetching}
-                        query={query}
+                        hasActiveFilters={filtersActive}
                         onSelect={handleSelect}
                       />
                     )}
@@ -351,7 +371,7 @@ export default function HomePage() {
                     <ResultsDropdown
                       results={search.data || []}
                       loading={search.isFetching}
-                      query={query}
+                      hasActiveFilters={filtersActive}
                       onSelect={handleSelect}
                       compact
                     />
