@@ -205,7 +205,7 @@ export default function HomePage() {
           </div>
           <div>
             <div className="text-sm font-semibold tracking-tight text-slate-100 transition group-hover:text-accent-200">
-              GapMap
+              Acquira
             </div>
             <div className="mono -mt-0.5 text-[9px] uppercase tracking-[0.2em] text-slate-500">
               Market risk screener
@@ -213,10 +213,7 @@ export default function HomePage() {
           </div>
         </button>
 
-        <div className="mono pointer-events-auto hidden items-center gap-2 rounded-full border border-white/5 bg-ink-900/60 px-3 py-1.5 text-[10px] uppercase tracking-[0.18em] text-slate-500 backdrop-blur md:flex">
-          <span className="h-1.5 w-1.5 rounded-full bg-verdict-proceed shadow-[0_0_8px_rgba(34,211,162,0.8)]" />
-          Phase 1 · MVP
-        </div>
+
       </header>
 
       {/* Globe — animates its width container when switching to detail mode */}
@@ -352,7 +349,7 @@ export default function HomePage() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.4, delay: 0.2 }}
-              className="absolute left-1/2 top-6 z-20 w-[calc(100%-12rem)] max-w-md -translate-x-1/2"
+              className="absolute right-4 top-4 z-[1000] w-80 max-w-[calc(100%-2rem)]"
             >
               <SearchPill
                 value={query}
@@ -365,6 +362,21 @@ export default function HomePage() {
                 compact
                 placeholder="Search another business…"
               />
+                {/* Filter chips under the compact search pill */}
+                <div className="mt-2 flex justify-end">
+                  <FilterChips
+                    city={city}
+                    onCityChange={setCity}
+                    category={category}
+                    onCategoryChange={setCategory}
+                    minYears={minYears}
+                    maxYears={maxYears}
+                    onYearRangeChange={(min, max) => {
+                      setMinYears(min);
+                      setMaxYears(max);
+                    }}
+                  />
+                </div>
               <AnimatePresence>
                 {focused && query.trim().length > 0 && (
                   <div className="mt-2">
