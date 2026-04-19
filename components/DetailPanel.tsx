@@ -17,9 +17,9 @@ interface DetailPanelProps {
 const SCORE_TOOLTIPS: Record<string, string> = {
   Saturation: "How crowded the market is nearby. Higher = less saturated, more room.",
   Turnover: "Rate businesses in this category open and close. Higher = more stable turnover.",
-  Stability: "How long businesses in this category tend to last. Higher = more durable.",
+
   Diversity: "Variety of surrounding business categories. Higher = healthier ecosystem.",
-  "Data Reliability": "Aggregated risk signals (sudden closures, trends). Higher = fewer flags.",
+
 };
 
 function overallTone(score: number) {

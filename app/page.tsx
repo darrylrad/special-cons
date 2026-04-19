@@ -62,6 +62,7 @@ export default function HomePage() {
   const [category, setCategory] = useState("");
   const [minYears, setMinYears] = useState(0);
   const [maxYears, setMaxYears] = useState(YEAR_MAX);
+  const [activePopupId, setActivePopupId] = useState<string | null>(null);
 
   // ---- UI state --------------------------------------------------------------
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -126,6 +127,13 @@ export default function HomePage() {
           lng: c.longitude,
           kind: "competitor",
           pulseAt: pulsingCompetitorIdx === i ? pulseTick : undefined,
+          // New: popup data for the map popup
+          popup: {
+            name: c.name,
+            overallScore: c.overall_score,
+            verdict: c.verdict,
+            scores: c.scores,
+          },
         });
       });
     }
@@ -169,6 +177,7 @@ export default function HomePage() {
   const handlePulseCompetitor = (index: number) => {
     setPulsingCompetitorIdx(index);
     setPulseTick(Date.now());
+    setActivePopupId(`competitor-${index}`);
     const c = competitors.data?.[index];
     if (c) globeRef.current?.flyTo(c.latitude, c.longitude, 0.4);
     setTimeout(() => setPulsingCompetitorIdx(null), 1600);
@@ -244,6 +253,8 @@ export default function HomePage() {
                       }
                     : undefined
                 }
+                activePopupId={activePopupId}
+                onPinClick={(pinId) => setActivePopupId(pinId)}
               />
             </motion.div>
           ) : (
