@@ -49,13 +49,13 @@ def search():
 
     if min_years is not None:
         conditions.append(
-            "date_part('day', now() - date_created::timestamp) / 365.25 >= %s"
+            "(date_part('day', now() - date_created::timestamp) / 365.25)::numeric >= %s"
         )
         params.append(min_years)
 
     if max_years is not None:
         conditions.append(
-            "date_part('day', now() - date_created::timestamp) / 365.25 <= %s"
+            "(date_part('day', now() - date_created::timestamp) / 365.25)::numeric <= %s"
         )
         params.append(max_years)
 
@@ -65,7 +65,7 @@ def search():
         SELECT fsq_place_id, name, address, locality, region,
                zip_clean, level1, level2, latitude, longitude,
                overall_score, verdict,
-               round(date_part('day', now() - date_created::timestamp) / 365.25, 1) AS age_years
+               round((date_part('day', now() - date_created::timestamp) / 365.25)::numeric, 1) AS age_years
         FROM businesses
         {where}
         ORDER BY overall_score DESC NULLS LAST
