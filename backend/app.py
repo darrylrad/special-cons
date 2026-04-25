@@ -1,47 +1,25 @@
 from flask import Flask, jsonify, request
-import math
-from datetime import datetime
 from flask_cors import CORS
-import pandas as pd
+import psycopg2
+import os
 
 app = Flask(__name__)
 CORS(app)
 
-# Load pre-computed data
-print("Loading scored businesses...")
-df = pd.read_csv('scored_businesses.csv', dtype={'zip_clean': str}, low_memory=False)
-print(f"Loaded {len(df)} businesses")
-
-# Pre-compute age-in-years column once, on load. Saves recomputing on every
-# search. Businesses with missing/unparseable dates get NaN — they'll simply
-# not match any year range filter (which is correct behavior).
-df['date_created_parsed'] = pd.to_datetime(df['date_created'], errors='coerce')
-_now = pd.Timestamp.now()
-df['age_years'] = (_now - df['date_created_parsed']).dt.days / 365.25
-
-# Pre-compute sorted list of distinct level1 categories so /api/categories
-# is effectively free to call.
-_categories = sorted(df['level1'].dropna().unique().tolist())
+DATABASE_URL = os.environ.get("DATABASE_URL")
 
 
-def _clean_nan(records):
-    """Replace float NaN with None in a list of dicts so jsonify can serialize.
-    Pandas refuses to store None in float columns, so we clean post-conversion.
-    """
-    for row in records:
-        for k, v in row.items():
-            if isinstance(v, float) and math.isnan(v):
-                row[k] = None
-    return records
+def get_conn():
+    return psycopg2.connect(DATABASE_URL)
+
+
+def _rows(cursor):
+    cols = [d[0] for d in cursor.description]
+    return [dict(zip(cols, row)) for row in cursor.fetchall()]
 
 
 # ---------------------------------------------------------------------------
 # Endpoint 1: Search with filters
-#   q          — optional free-text, matches name/locality/level2
-#   city       — optional, locality substring match
-#   category   — optional, exact match against level1
-#   min_years  — optional integer, business must be >= this age
-#   max_years  — optional integer, business must be <= this age
 # ---------------------------------------------------------------------------
 @app.route('/api/search')
 def search():
@@ -51,100 +29,96 @@ def search():
     min_years = request.args.get('min_years', type=float)
     max_years = request.args.get('max_years', type=float)
 
-    # Start with everything.
-    results = df
+    conditions = []
+    params = []
 
-    # Free-text search — across name, locality, and level2 category.
     if query:
-        mask = (
-            results['name'].str.contains(query, case=False, na=False) |
-            results['locality'].str.contains(query, case=False, na=False) |
-            results['level2'].str.contains(query, case=False, na=False)
+        conditions.append(
+            "(name ILIKE %s OR locality ILIKE %s OR level2 ILIKE %s)"
         )
-        results = results[mask]
+        like = f"%{query}%"
+        params += [like, like, like]
 
-    # City refinement.
     if city:
-        results = results[
-            results['locality'].str.contains(city, case=False, na=False)
-        ]
+        conditions.append("locality ILIKE %s")
+        params.append(f"%{city}%")
 
-    # Category: exact match on level1. We expect the frontend to pass the
-    # exact value returned from /api/categories.
     if category:
-        results = results[results['level1'] == category]
+        conditions.append("level1 = %s")
+        params.append(category)
 
-    # Year range — businesses with unknown age (NaN) are excluded when either
-    # bound is specified, since we can't verify they fit.
     if min_years is not None:
-        results = results[results['age_years'] >= min_years]
+        conditions.append(
+            "date_part('day', now() - date_created::timestamp) / 365.25 >= %s"
+        )
+        params.append(min_years)
+
     if max_years is not None:
-        results = results[results['age_years'] <= max_years]
+        conditions.append(
+            "date_part('day', now() - date_created::timestamp) / 365.25 <= %s"
+        )
+        params.append(max_years)
 
-    # Sort by overall_score descending so highest-quality matches come first.
-    # This makes filter-only browses (no query text) immediately useful.
-    if 'overall_score' in results.columns:
-        results = results.sort_values('overall_score', ascending=False, na_position='last')
+    where = ("WHERE " + " AND ".join(conditions)) if conditions else ""
 
-    total = len(results)
+    sql = f"""
+        SELECT fsq_place_id, name, address, locality, region,
+               zip_clean, level1, level2, latitude, longitude,
+               overall_score, verdict,
+               round(date_part('day', now() - date_created::timestamp) / 365.25, 1) AS age_years
+        FROM businesses
+        {where}
+        ORDER BY overall_score DESC NULLS LAST
+        LIMIT 25
+    """
 
-    # Cap at 25 for filter-driven browses (up from 10). Still protects the
-    # wire from accidentally returning 400k rows.
-    results = results.head(25)[
-        ['fsq_place_id', 'name', 'address', 'locality', 'region',
-         'zip_clean', 'level1', 'level2', 'latitude', 'longitude',
-         'overall_score', 'verdict', 'age_years']
-    ].copy()
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(sql, params)
+            results = _rows(cur)
 
-    # Round age_years to 1 decimal so the frontend can show "3.2 years"
-    # without having to trim long floats.
-    results['age_years'] = results['age_years'].round(1)
-
-    # Debug line — filters + hit counts.
-    print(
-        f"[search] q={query!r} city={city!r} cat={category!r} "
-        f"years=[{min_years},{max_years}] → total={total}, returning={len(results)}"
-    )
-
-    return jsonify(_clean_nan(results.to_dict('records')))
+    print(f"[search] q={query!r} city={city!r} cat={category!r} years=[{min_years},{max_years}] → {len(results)} results")
+    return jsonify(results)
 
 
 # ---------------------------------------------------------------------------
-# Endpoint 2 (new): list of level1 categories
-# Used to populate the Category dropdown on the frontend.
+# Endpoint 2: List of level1 categories
 # ---------------------------------------------------------------------------
 @app.route('/api/categories')
 def categories():
-    return jsonify(_categories)
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT DISTINCT level1 FROM businesses WHERE level1 IS NOT NULL ORDER BY level1")
+            results = [row[0] for row in cur.fetchall()]
+    return jsonify(results)
 
 
 # ---------------------------------------------------------------------------
-# Endpoint 3: Get full risk report (unchanged behavior, light NaN hardening)
+# Endpoint 3: Full risk report
 # ---------------------------------------------------------------------------
 @app.route('/api/report/<place_id>')
 def report(place_id):
-    biz = df[df['fsq_place_id'] == place_id]
-    if biz.empty:
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT * FROM businesses WHERE fsq_place_id = %s LIMIT 1", (place_id,))
+            rows = _rows(cur)
+
+    if not rows:
         return jsonify({'error': 'Not found'}), 404
 
-    b = biz.iloc[0]
+    b = rows[0]
 
     def s(key, default=''):
-        """Safe string getter — empty string for NaN."""
-        v = b.get(key, default)
-        return default if pd.isna(v) else v
+        v = b.get(key)
+        return default if v is None else str(v)
 
     def f(key, default=0.0, digits=1):
-        v = b.get(key, default)
-        if pd.isna(v):
-            return default
-        return round(float(v), digits)
+        v = b.get(key)
+        return default if v is None else round(float(v), digits)
 
     def i(key, default=0):
-        v = b.get(key, default)
-        if pd.isna(v):
-            return default
-        return int(v)
+        v = b.get(key)
+        return default if v is None else int(v)
 
     return jsonify({
         'business': {
@@ -165,46 +139,52 @@ def report(place_id):
         'scores': {
             'saturation': f('saturation_score', 0, 1),
             'churn': f('churn_score', 0, 1),
-
             'diversity': f('diversity_score', 0, 1),
-
         },
         'details': {
             'competitors_in_zip': i('same_category_count_zip'),
             'historical_closure_rate': f('historical_closure_rate', 0, 3),
             'avg_competitor_age_years': f('avg_same_category_age_zip', 0, 1),
             'ecosystem_diversity': i('level2_diversity'),
-            'population': i('population') if pd.notna(b.get('population')) else None,
-            'businesses_per_10k': f('businesses_per_10k_people', 0, 2)
-                if pd.notna(b.get('businesses_per_10k_people')) else None,
+            'population': i('population') if b.get('population') is not None else None,
+            'businesses_per_10k': f('businesses_per_10k_people', 0, 2) if b.get('businesses_per_10k_people') is not None else None,
         }
     })
 
 
 # ---------------------------------------------------------------------------
-# Endpoint 4: Get nearby competitors (now with scores for popup)
+# Endpoint 4: Nearby competitors
 # ---------------------------------------------------------------------------
 @app.route('/api/competitors/<place_id>')
 def competitors(place_id):
-    biz = df[df['fsq_place_id'] == place_id]
-    if biz.empty:
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT zip_clean, level2 FROM businesses WHERE fsq_place_id = %s LIMIT 1",
+                (place_id,)
+            )
+            rows = _rows(cur)
+
+    if not rows:
         return jsonify({'error': 'Not found'}), 404
 
-    b = biz.iloc[0]
-    nearby = df[
-        (df['fsq_place_id'] != place_id) &
-        (df['level2'] == b['level2']) &
-        (df['zip_clean'] == b['zip_clean'])
-    ][[
-        'fsq_place_id', 'name', 'address', 'latitude', 'longitude',
-        'date_created', 'level3',
-        # Score data for the map popup
-        'overall_score', 'verdict',
-        'saturation_score', 'churn_score', 
-        'diversity_score', 
-    ]].head(20)
+    b = rows[0]
 
-    return jsonify(_clean_nan(nearby.to_dict('records')))
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT fsq_place_id, name, address, latitude, longitude,
+                       date_created, level3, overall_score, verdict,
+                       saturation_score, churn_score, diversity_score
+                FROM businesses
+                WHERE fsq_place_id != %s
+                  AND level2 = %s
+                  AND zip_clean = %s
+                LIMIT 20
+            """, (place_id, b['level2'], b['zip_clean']))
+            results = _rows(cur)
+
+    return jsonify(results)
 
 
 if __name__ == '__main__':

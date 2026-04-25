@@ -7,3 +7,8 @@ out/
 .DS_Store
 next-env.d.ts
 .vercel
+backend/scored_businesses.csv
+backend/*.parquet
+backend/venv/
+backend/.venv/
+.claude/
