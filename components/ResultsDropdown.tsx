@@ -127,7 +127,7 @@ export default function ResultsDropdown({
                       <>
                         <span className="text-slate-700">·</span>
                         <span className="mono text-slate-500">
-                          {r.age_years.toFixed(1)}y
+                          {Number(r.age_years).toFixed(1)}y
                         </span>
                       </>
                     )}
@@ -140,7 +140,7 @@ export default function ResultsDropdown({
                         r.verdict
                       )}`}
                     >
-                      {r.overall_score.toFixed(0)}
+                      {Number(r.overall_score).toFixed(0)}
                     </span>
                   )}
                   <svg

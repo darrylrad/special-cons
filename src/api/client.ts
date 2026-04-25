@@ -117,7 +117,7 @@ function normalizeSearch(raw: RawSearchResult): SearchResult {
     level2: raw.level2,
     overall_score: raw.overall_score,
     verdict: raw.verdict as any,
-    age_years: raw.age_years,
+    age_years: raw.age_years !== undefined && raw.age_years !== null ? Number(raw.age_years) : undefined,
   };
 }
 
