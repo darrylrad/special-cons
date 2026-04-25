@@ -4,6 +4,7 @@ import type {
   Report,
   SearchResult,
   Verdict,
+  SearchFilters,
 } from "./types";
 import { ApiError } from "./types";
 
@@ -51,9 +52,7 @@ const MOCK_DB: Record<string, MockBusiness> = {
       scores: {
         saturation: 62.0,
         churn: 41.5,
-        stability: 58.2,
         diversity: 71.0,
-        red_flags: 45.0,
       },
       details: {
         competitors_nearby: 6,
@@ -63,12 +62,12 @@ const MOCK_DB: Record<string, MockBusiness> = {
       },
     },
     competitors: [
-      { name: "Clean City Laundromat", address: "789 Bergen St, Brooklyn, NY", latitude: 40.682, longitude: -73.975, date_created: "2019-03-15" },
-      { name: "Atlantic Wash & Fold", address: "455 Atlantic Ave, Brooklyn, NY", latitude: 40.684, longitude: -73.981, date_created: "2021-07-22" },
-      { name: "Smith Street Suds", address: "220 Smith St, Brooklyn, NY", latitude: 40.688, longitude: -73.990, date_created: "2017-11-03" },
-      { name: "Boerum Hill Laundry", address: "340 Court St, Brooklyn, NY", latitude: 40.682, longitude: -73.994, date_created: "2016-05-10" },
-      { name: "Quick Spin Laundromat", address: "12 Hoyt St, Brooklyn, NY", latitude: 40.690, longitude: -73.987, date_created: "2022-01-18" },
-      { name: "Downtown Wash Center", address: "8 DeKalb Ave, Brooklyn, NY", latitude: 40.692, longitude: -73.981, date_created: "2020-09-02" },
+      { fsq_place_id: "mock_comp_bl_001", name: "Clean City Laundromat", address: "789 Bergen St, Brooklyn, NY", latitude: 40.682, longitude: -73.975, date_created: "2019-03-15" },
+      { fsq_place_id: "mock_comp_bl_002", name: "Atlantic Wash & Fold", address: "455 Atlantic Ave, Brooklyn, NY", latitude: 40.684, longitude: -73.981, date_created: "2021-07-22" },
+      { fsq_place_id: "mock_comp_bl_003", name: "Smith Street Suds", address: "220 Smith St, Brooklyn, NY", latitude: 40.688, longitude: -73.990, date_created: "2017-11-03" },
+      { fsq_place_id: "mock_comp_bl_004", name: "Boerum Hill Laundry", address: "340 Court St, Brooklyn, NY", latitude: 40.682, longitude: -73.994, date_created: "2016-05-10" },
+      { fsq_place_id: "mock_comp_bl_005", name: "Quick Spin Laundromat", address: "12 Hoyt St, Brooklyn, NY", latitude: 40.690, longitude: -73.987, date_created: "2022-01-18" },
+      { fsq_place_id: "mock_comp_bl_006", name: "Downtown Wash Center", address: "8 DeKalb Ave, Brooklyn, NY", latitude: 40.692, longitude: -73.981, date_created: "2020-09-02" },
     ],
   },
 
@@ -97,9 +96,7 @@ const MOCK_DB: Record<string, MockBusiness> = {
       scores: {
         saturation: 48.0,
         churn: 72.5,
-        stability: 81.0,
         diversity: 88.0,
-        red_flags: 82.0,
       },
       details: {
         competitors_nearby: 4,
@@ -109,10 +106,10 @@ const MOCK_DB: Record<string, MockBusiness> = {
       },
     },
     competitors: [
-      { name: "Cosmic Coffee + Beer Garden", address: "121 Pickle Rd, Austin, TX", latitude: 30.245, longitude: -97.745, date_created: "2018-04-05" },
-      { name: "Houndstooth Coffee", address: "4200 N Lamar Blvd, Austin, TX", latitude: 30.302, longitude: -97.738, date_created: "2010-08-11" },
-      { name: "Figure 8 Coffee Purveyors", address: "1111 E 11th St, Austin, TX", latitude: 30.269, longitude: -97.725, date_created: "2015-06-20" },
-      { name: "Merit Coffee", address: "710 W 5th St, Austin, TX", latitude: 30.269, longitude: -97.749, date_created: "2012-02-14" },
+      { fsq_place_id: "mock_comp_ac_001", name: "Cosmic Coffee + Beer Garden", address: "121 Pickle Rd, Austin, TX", latitude: 30.245, longitude: -97.745, date_created: "2018-04-05" },
+      { fsq_place_id: "mock_comp_ac_002", name: "Houndstooth Coffee", address: "4200 N Lamar Blvd, Austin, TX", latitude: 30.302, longitude: -97.738, date_created: "2010-08-11" },
+      { fsq_place_id: "mock_comp_ac_003", name: "Figure 8 Coffee Purveyors", address: "1111 E 11th St, Austin, TX", latitude: 30.269, longitude: -97.725, date_created: "2015-06-20" },
+      { fsq_place_id: "mock_comp_ac_004", name: "Merit Coffee", address: "710 W 5th St, Austin, TX", latitude: 30.269, longitude: -97.749, date_created: "2012-02-14" },
     ],
   },
 
@@ -141,9 +138,7 @@ const MOCK_DB: Record<string, MockBusiness> = {
       scores: {
         saturation: 18.0,
         churn: 24.0,
-        stability: 38.0,
         diversity: 52.0,
-        red_flags: 28.5,
       },
       details: {
         competitors_nearby: 14,
@@ -153,17 +148,15 @@ const MOCK_DB: Record<string, MockBusiness> = {
       },
     },
     competitors: [
-      { name: "Sunset Nails", address: "200 NE 14th St, Miami, FL", latitude: 25.789, longitude: -80.191, date_created: "2022-11-04" },
-      { name: "Polished Miami", address: "350 NE 2nd Ave, Miami, FL", latitude: 25.778, longitude: -80.189, date_created: "2023-02-17" },
-      { name: "Brickell Nail Lounge", address: "1010 S Miami Ave, Miami, FL", latitude: 25.769, longitude: -80.196, date_created: "2021-08-30" },
-      { name: "Edgewater Nails & Spa", address: "3301 NE 1st Ave, Miami, FL", latitude: 25.810, longitude: -80.191, date_created: "2020-04-12" },
-      { name: "Wynwood Nail Studio", address: "2250 NW 2nd Ave, Miami, FL", latitude: 25.800, longitude: -80.197, date_created: "2022-06-01" },
+      { fsq_place_id: "mock_comp_mn_001", name: "Sunset Nails", address: "200 NE 14th St, Miami, FL", latitude: 25.789, longitude: -80.191, date_created: "2022-11-04" },
+      { fsq_place_id: "mock_comp_mn_002", name: "Polished Miami", address: "350 NE 2nd Ave, Miami, FL", latitude: 25.778, longitude: -80.189, date_created: "2023-02-17" },
+      { fsq_place_id: "mock_comp_mn_003", name: "Brickell Nail Lounge", address: "1010 S Miami Ave, Miami, FL", latitude: 25.769, longitude: -80.196, date_created: "2021-08-30" },
+      { fsq_place_id: "mock_comp_mn_004", name: "Edgewater Nails & Spa", address: "3301 NE 1st Ave, Miami, FL", latitude: 25.810, longitude: -80.191, date_created: "2020-04-12" },
+      { fsq_place_id: "mock_comp_mn_005", name: "Wynwood Nail Studio", address: "2250 NW 2nd Ave, Miami, FL", latitude: 25.800, longitude: -80.197, date_created: "2022-06-01" },
     ],
   },
 };
 
-// Key lookups are also aliased by lowercase name prefix so search returns results
-// that feel responsive to what the user typed.
 function matchesQuery(b: MockBusiness, query: string, city?: string) {
   const q = query.trim().toLowerCase();
   if (!q) return false;
@@ -174,18 +167,16 @@ function matchesQuery(b: MockBusiness, query: string, city?: string) {
 }
 
 export const mockApi: AcquiraApi = {
-  async search(query, city) {
+  async search(query, filters?: SearchFilters) {
     await delay(jitter());
-    // Explicit error path for testing.
     if (query.trim().toLowerCase() === "notfound") return [];
     if (query.trim().toLowerCase() === "error") {
       throw new ApiError("Search service unavailable", 500);
     }
 
+    const city = filters?.city;
     const hits = Object.values(MOCK_DB).filter((b) => matchesQuery(b, query, city));
 
-    // If nothing matches exactly, fall back to a synthetic result so the UI is
-    // always exercisable even with made-up queries during dev.
     if (hits.length === 0) {
       const q = query.trim();
       if (!q) return [];
@@ -194,7 +185,7 @@ export const mockApi: AcquiraApi = {
           fsq_place_id: "mock_synthetic_001",
           name: `${q}`,
           address: "123 Main St",
-          locality: city || "New York",
+          locality: city ?? "New York",
           region: "NY",
           postcode: "10001",
         },
@@ -204,6 +195,15 @@ export const mockApi: AcquiraApi = {
     return hits.slice(0, 10).map((b) => b.result);
   },
 
+  async getCategories() {
+    await delay(jitter());
+    return [
+      "Retail > Laundry > Laundromat",
+      "Food & Beverage > Cafe > Coffee Shop",
+      "Health & Beauty > Nail Salon",
+    ];
+  },
+
   async getReport(placeId) {
     await delay(jitter());
     if (placeId === "error_001") {
@@ -211,7 +211,6 @@ export const mockApi: AcquiraApi = {
     }
     const entry = MOCK_DB[placeId];
     if (entry) return entry.report;
-    // Synthetic fallback — gives the synthetic search result a plausible report.
     return MOCK_DB.mock_brooklyn_laundry.report;
   },
 
