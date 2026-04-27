@@ -1,7 +1,8 @@
 import pandas as pd
 from sqlalchemy import create_engine, text
 
-DATABASE_URL = "postgresql://postgres.tdzhmmpmadrbqxvgalog:FXIiJEmv2aGuNdLf@aws-1-ap-southeast-1.pooler.supabase.com:5432/postgres"
+DATABASE_URL = "postgresql://localhost/gapmap"
+#"postgresql://postgres.tdzhmmpmadrbqxvgalog:FXIiJEmv2aGuNdLf@aws-1-ap-southeast-1.pooler.supabase.com:5432/postgres"
 
 print("Connecting to database...")
 engine = create_engine(DATABASE_URL)

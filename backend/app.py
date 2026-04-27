@@ -1,16 +1,25 @@
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 import psycopg2
+import psycopg2.pool
 import os
+from contextlib import contextmanager
 
 app = Flask(__name__)
 CORS(app)
 
 DATABASE_URL = os.environ.get("DATABASE_URL")
 
+_pool = psycopg2.pool.ThreadedConnectionPool(1, 10, DATABASE_URL)
 
+
+@contextmanager
 def get_conn():
-    return psycopg2.connect(DATABASE_URL)
+    conn = _pool.getconn()
+    try:
+        yield conn
+    finally:
+        _pool.putconn(conn)
 
 
 def _rows(cursor):
@@ -165,13 +174,11 @@ def competitors(place_id):
             )
             rows = _rows(cur)
 
-    if not rows:
-        return jsonify({'error': 'Not found'}), 404
+            if not rows:
+                return jsonify({'error': 'Not found'}), 404
 
-    b = rows[0]
+            b = rows[0]
 
-    with get_conn() as conn:
-        with conn.cursor() as cur:
             cur.execute("""
                 SELECT fsq_place_id, name, address, latitude, longitude,
                        date_created, level3, overall_score, verdict,
