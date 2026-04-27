@@ -1,10 +1,12 @@
 "use client";
 
+import { useState } from "react";
 import { motion } from "framer-motion";
 import type { Competitor, Report } from "@/src/api";
 import VerdictBadge from "./VerdictBadge";
 import ScoreBar from "./ScoreBar";
 import CompetitorList from "./CompetitorList";
+import ReportModal from "./ReportModal";
 
 interface DetailPanelProps {
   report: Report | undefined;
@@ -156,6 +158,7 @@ function ReportBody({
   competitors: Competitor[] | undefined;
   onPulseCompetitor: (index: number) => void;
 }) {
+  const [showReport, setShowReport] = useState(false);
   const { business, verdict, overall_score, scores, details } = report;
   const tone = overallTone(overall_score);
   const crumbs = business.category.split(">").map((s) => s.trim()).filter(Boolean);
@@ -197,9 +200,23 @@ function ReportBody({
           </div>
         </div>
 
-        <div>
+        <div className="flex items-center gap-3">
           <VerdictBadge verdict={verdict} />
+          <button
+            onClick={() => setShowReport(true)}
+            className="mono flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-4 py-2.5 text-[10px] uppercase tracking-[0.16em] text-slate-400 transition hover:border-accent-500/30 hover:bg-accent-500/10 hover:text-accent-300 active:scale-95"
+          >
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+              <path d="M14 2v6h6M16 13H8M16 17H8M10 9H8" />
+            </svg>
+            Generate Report
+          </button>
         </div>
+
+        {showReport && (
+          <ReportModal report={report} onClose={() => setShowReport(false)} />
+        )}
       </motion.header>
 
       {/* ----- Location --------------------------------------------------- */}
