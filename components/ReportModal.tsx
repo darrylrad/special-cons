@@ -24,6 +24,17 @@ const SCORE_LABELS: Record<string, string> = {
   diversity: "Ecosystem Diversity",
 };
 
+function BoldText({ text }: { text: string }) {
+  const parts = text.split(/\*\*(.*?)\*\*/g);
+  return (
+    <>
+      {parts.map((part, i) =>
+        i % 2 === 1 ? <strong key={i} className="text-slate-200 font-semibold">{part}</strong> : part
+      )}
+    </>
+  );
+}
+
 function StatRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-center justify-between py-2.5 border-b border-white/5 last:border-0">
@@ -230,7 +241,7 @@ export default function ReportModal({ report, onClose }: ReportModalProps) {
               )}
               {aiSummary && (
                 <p className="text-sm leading-relaxed text-slate-300">
-                  {aiSummary}
+                  <BoldText text={aiSummary} />
                 </p>
               )}
             </div>
