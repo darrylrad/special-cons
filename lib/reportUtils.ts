@@ -299,25 +299,77 @@ export function buildPdf(report: Report, generated: GeneratedReport, aiSummary?:
     y += 6;
   }
 
-  // AI insight — set font before splitTextToSize so line count is accurate
-  doc.setFont("helvetica", aiSummary ? "normal" : "italic");
-  doc.setFontSize(8.5);
+  // AI insight
   const aiText = aiSummary ?? "AI narrative summary not available.";
-  const aiLines = doc.splitTextToSize(aiText, contentW - 12);
+  doc.setFontSize(8.5);
+
+  // Normalize newlines to spaces — jsPDF auto-advances y for \n in doc.text(),
+  // which breaks our manual ly tracking and causes lines to overlap.
+  const aiTextNorm = aiText.replace(/[\r\n]+/g, " ");
+
+  // Parse text into bold/normal segments
+  const rawSegments: Array<{ text: string; bold: boolean }> = [];
+  aiTextNorm.split(/\*\*(.*?)\*\*/g).forEach((part, i) => {
+    if (part) rawSegments.push({ text: part, bold: i % 2 === 1 });
+  });
+
+  // Word-wrap segments into lines preserving bold info
+  const wrappedLines: Array<Array<{ text: string; bold: boolean }>> = [[]];
+  let lineW = 0;
+  const maxLineW = contentW - 14;
+
+  for (const { text, bold } of rawSegments) {
+    for (const token of text.split(/(\s+)/)) {
+      if (!token) continue;
+      const isSpace = /^\s+$/.test(token);
+      doc.setFont("helvetica", bold ? "bold" : "normal");
+      const tw = doc.getTextWidth(token);
+
+      if (isSpace) {
+        if (lineW === 0) continue; // skip leading space on a freshly wrapped line
+      } else if (lineW > 0 && lineW + tw > maxLineW) {
+        wrappedLines.push([]);
+        lineW = 0;
+      }
+
+      const cur = wrappedLines[wrappedLines.length - 1];
+      const last = cur[cur.length - 1];
+      if (last && last.bold === bold) {
+        last.text += token;
+      } else {
+        cur.push({ text: token, bold });
+      }
+      lineW += tw;
+    }
+  }
+
+  // Use normal font for a consistent lineH measurement
+  doc.setFont("helvetica", "normal");
   const lineH = doc.getLineHeight() / doc.internal.scaleFactor;
-  const aiBoxH = Math.ceil(aiLines.length * lineH) + 22;
+  const aiBoxH = wrappedLines.length * lineH + 22;
   checkPage(aiBoxH + 5);
+
   doc.setFillColor(240, 245, 255);
   doc.roundedRect(margin, y, contentW, aiBoxH, 3, 3, "F");
   doc.setFont("helvetica", "bold");
   doc.setFontSize(8);
   doc.setTextColor(80, 100, 160);
   doc.text("AI-POWERED INSIGHT", margin + 5, y + 7);
-  doc.setFont("helvetica", aiSummary ? "normal" : "italic");
+
   doc.setFontSize(8.5);
   doc.setTextColor(aiSummary ? 40 : 120, aiSummary ? 50 : 130, aiSummary ? 80 : 160);
-  doc.text(aiLines, margin + 5, y + 15);
-  y += aiBoxH + 6;
+  let ly = y + 15;
+  wrappedLines.forEach((line) => {
+    let lx = margin + 5;
+    line.forEach(({ text, bold }) => {
+      if (!text) return;
+      doc.setFont("helvetica", bold ? "bold" : "normal");
+      doc.text(text, lx, ly);
+      lx += doc.getTextWidth(text);
+    });
+    ly += lineH;
+  });
+  y = ly + 6;
 
   addFooter();
   return doc;
