@@ -14,14 +14,16 @@ export async function GET(req: NextRequest) {
       SELECT fsq_place_id, name, address, locality, region,
              zip_clean, level1, level2, latitude, longitude,
              overall_score, verdict,
-             round((date_part('day', now() - date_created::timestamp) / 365.25)::numeric, 1) AS age_years
+             CASE WHEN date_created ~ E'^\\d{4}-\\d{2}-\\d{2}'
+                  THEN round((date_part('day', now() - date_created::timestamp) / 365.25)::numeric, 1)
+                  ELSE NULL END AS age_years
       FROM businesses
       WHERE TRUE
       ${query    ? sql`AND (name ILIKE ${"%" + query + "%"} OR locality ILIKE ${"%" + query + "%"} OR level2 ILIKE ${"%" + query + "%"})` : sql``}
       ${city     ? sql`AND locality ILIKE ${"%" + city + "%"}` : sql``}
       ${category ? sql`AND level1 = ${category}` : sql``}
-      ${minYears != null ? sql`AND (date_part('day', now() - date_created::timestamp) / 365.25)::numeric >= ${minYears}` : sql``}
-      ${maxYears != null ? sql`AND (date_part('day', now() - date_created::timestamp) / 365.25)::numeric <= ${maxYears}` : sql``}
+      ${minYears != null ? sql`AND date_created ~ E'^\\d{4}-\\d{2}-\\d{2}' AND (date_part('day', now() - date_created::timestamp) / 365.25)::numeric >= ${minYears}` : sql``}
+      ${maxYears != null ? sql`AND date_created ~ E'^\\d{4}-\\d{2}-\\d{2}' AND (date_part('day', now() - date_created::timestamp) / 365.25)::numeric <= ${maxYears}` : sql``}
       ORDER BY overall_score DESC NULLS LAST
       LIMIT 25
     `;
