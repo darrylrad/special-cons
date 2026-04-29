@@ -26,8 +26,9 @@ export async function GET(req: NextRequest) {
       LIMIT 25
     `;
     return NextResponse.json(results);
-  } catch (e) {
-    console.error("[search]", e);
-    return NextResponse.json({ error: "Search failed" }, { status: 500 });
+  } catch (e: any) {
+    const msg = e?.message ?? String(e);
+    console.error("[search]", msg, e);
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
