@@ -2,26 +2,35 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import type { Report } from "@/src/api/types";
+import type { Report, YelpData } from "@/src/api/types";
 import { generateReport, buildPdf } from "@/lib/reportUtils";
+import { enrichedScore, scoreTone } from "@/lib/scoring";
 import ScoreBar from "./ScoreBar";
 import VerdictBadge from "./VerdictBadge";
 
 interface ReportModalProps {
   report: Report;
   onClose: () => void;
+  yelpData: YelpData | null;
+  isYelpLoading: boolean;
 }
 
 const SCORE_TOOLTIPS: Record<string, string> = {
   saturation: "How crowded the market is nearby. Higher = less saturated, more room.",
   churn: "Rate businesses in this category open and close. Higher = more stable turnover.",
   diversity: "Variety of surrounding business categories. Higher = healthier ecosystem.",
+  sentiment: "Derived from Yelp star rating. Higher = stronger customer satisfaction.",
+  traction: "Derived from Yelp review volume. Higher = more established market presence.",
+  competitive: "Target rating vs average competitor rating. Higher = outperforms local competition.",
 };
 
 const SCORE_LABELS: Record<string, string> = {
   saturation: "Market Saturation",
   churn: "Business Turnover",
   diversity: "Ecosystem Diversity",
+  sentiment: "Customer Sentiment",
+  traction: "Market Traction",
+  competitive: "Competitive Advantage",
 };
 
 function BoldText({ text }: { text: string }) {
@@ -44,18 +53,21 @@ function StatRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-export default function ReportModal({ report, onClose }: ReportModalProps) {
+export default function ReportModal({ report, onClose, yelpData, isYelpLoading }: ReportModalProps) {
   const { business, verdict, overall_score, scores, details } = report;
   const generated = generateReport(report);
   const [aiSummary, setAiSummary] = useState<string | null>(null);
   const [aiLoading, setAiLoading] = useState(true);
   const [aiError, setAiError] = useState(false);
 
+  const finalScore = enrichedScore(overall_score, yelpData);
+  const tone = scoreTone(finalScore);
+
   useEffect(() => {
     fetch("/api/generate-report", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(report),
+      body: JSON.stringify({ ...report, yelpData }),
     })
       .then((r) => r.json())
       .then((data) => setAiSummary(data.summary))
@@ -64,7 +76,7 @@ export default function ReportModal({ report, onClose }: ReportModalProps) {
   }, []);
 
   function handleDownload() {
-    const doc = buildPdf(report, generated, aiSummary);
+    const doc = buildPdf(report, generated, aiSummary, yelpData ?? undefined);
     const slug = business.name.toLowerCase().replace(/\s+/g, "-");
     doc.save(`acquira-report-${slug}.pdf`);
   }
@@ -88,15 +100,11 @@ export default function ReportModal({ report, onClose }: ReportModalProps) {
           className="glass-strong relative flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-white/10 shadow-panel"
           onClick={(e) => e.stopPropagation()}
         >
-          {/* Modal header */}
+          {/* Header */}
           <div className="flex shrink-0 items-center justify-between border-b border-white/5 px-7 py-5">
             <div>
-              <div className="mono text-[9px] uppercase tracking-[0.22em] text-slate-600">
-                Acquisition Report
-              </div>
-              <div className="mt-0.5 text-base font-semibold leading-snug text-slate-100">
-                {business.name}
-              </div>
+              <div className="mono text-[9px] uppercase tracking-[0.22em] text-slate-600">Acquisition Report</div>
+              <div className="mt-0.5 text-base font-semibold leading-snug text-slate-100">{business.name}</div>
             </div>
             <div className="flex items-center gap-2">
               <button
@@ -108,11 +116,7 @@ export default function ReportModal({ report, onClose }: ReportModalProps) {
                 </svg>
                 Download PDF
               </button>
-              <button
-                onClick={onClose}
-                className="rounded-lg p-2 text-slate-500 transition hover:bg-white/5 hover:text-slate-300"
-                aria-label="Close"
-              >
+              <button onClick={onClose} className="rounded-lg p-2 text-slate-500 transition hover:bg-white/5 hover:text-slate-300" aria-label="Close">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M18 6L6 18M6 6l12 12" />
                 </svg>
@@ -120,10 +124,10 @@ export default function ReportModal({ report, onClose }: ReportModalProps) {
             </div>
           </div>
 
-          {/* Scrollable body */}
+          {/* Body */}
           <div className="flex-1 overflow-y-auto px-7 py-6 space-y-8">
 
-            {/* Overall score + verdict */}
+            {/* Overall score */}
             <div className="flex items-center justify-between">
               <div>
                 <VerdictBadge verdict={verdict} />
@@ -132,38 +136,39 @@ export default function ReportModal({ report, onClose }: ReportModalProps) {
                 </div>
               </div>
               <div className="text-right">
-                <div className="mono text-[3rem] font-light leading-none tabular-nums text-slate-100">
-                  {overall_score.toFixed(1)}
+                <div className={`mono text-[3rem] font-light leading-none tabular-nums ${tone.color}`}>
+                  {finalScore.toFixed(1)}
                 </div>
                 <div className="mono text-[10px] uppercase tracking-[0.2em] text-slate-600">
-                  / 100 overall
+                  / 100 overall{yelpData ? " · yelp enriched" : ""}
                 </div>
               </div>
             </div>
 
             {/* Executive summary */}
             <div className="rounded-xl border border-white/5 bg-white/[0.02] p-5">
-              <div className="mono mb-2 text-[9px] uppercase tracking-[0.2em] text-slate-500">
-                Summary
-              </div>
-              <p className="text-sm leading-relaxed text-slate-300">
-                {generated.executiveSummary}
-              </p>
+              <div className="mono mb-2 text-[9px] uppercase tracking-[0.2em] text-slate-500">Summary</div>
+              <p className="text-sm leading-relaxed text-slate-300">{generated.executiveSummary}</p>
             </div>
 
-            {/* Score breakdown */}
+            {/* Location score row */}
             <div>
-              <div className="mono mb-4 text-[9px] uppercase tracking-[0.2em] text-slate-500">
-                Signal Breakdown
+              <div className="mono mb-4 text-[9px] uppercase tracking-[0.2em] text-slate-500">Location Score</div>
+              <div className="flex items-center justify-between rounded-xl border border-white/5 bg-white/[0.02] px-5 py-3">
+                <span className="text-[11px] text-slate-400">Base score (saturation · turnover · diversity)</span>
+                <span className={`mono text-lg font-light tabular-nums ${scoreTone(overall_score).color}`}>
+                  {overall_score.toFixed(1)}
+                </span>
               </div>
+            </div>
+
+            {/* Location signals */}
+            <div>
+              <div className="mono mb-4 text-[9px] uppercase tracking-[0.2em] text-slate-500">Location Signals</div>
               <div className="space-y-5">
                 {Object.entries(scores).map(([key, value]) => (
                   <div key={key}>
-                    <ScoreBar
-                      label={SCORE_LABELS[key] ?? key}
-                      value={value}
-                      tooltip={SCORE_TOOLTIPS[key] ?? ""}
-                    />
+                    <ScoreBar label={SCORE_LABELS[key] ?? key} value={value} tooltip={SCORE_TOOLTIPS[key] ?? ""} />
                     <p className="mt-1.5 text-[11px] leading-relaxed text-slate-500">
                       {generated.scoreAnalysis.find((s) => s.title === (SCORE_LABELS[key] ?? key))?.content}
                     </p>
@@ -172,11 +177,59 @@ export default function ReportModal({ report, onClose }: ReportModalProps) {
               </div>
             </div>
 
+            {/* Yelp signals */}
+            <div>
+              <div className="mono mb-4 text-[9px] uppercase tracking-[0.2em] text-slate-500 flex items-center gap-2">
+                Yelp Signals
+                {isYelpLoading && (
+                  <svg className="animate-spin text-slate-600" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M21 12a9 9 0 11-6.219-8.56" />
+                  </svg>
+                )}
+              </div>
+
+              {isYelpLoading && (
+                <div className="space-y-5">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="space-y-2">
+                      <div className="shimmer h-3 w-32 rounded" />
+                      <div className="shimmer h-1.5 w-full rounded" />
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {!isYelpLoading && !yelpData && (
+                <p className="text-[11px] text-slate-600">Business not found on Yelp — Yelp signals unavailable.</p>
+              )}
+
+              {yelpData && (
+                <>
+                  <div className="space-y-5 mb-5">
+                    {(["sentiment", "traction", "competitive"] as const).map((key) => (
+                      <div key={key}>
+                        <ScoreBar label={SCORE_LABELS[key]} value={yelpData.scores[key]} tooltip={SCORE_TOOLTIPS[key]} />
+                        <p className="mt-1.5 text-[11px] leading-relaxed text-slate-500">
+                          {generated.scoreAnalysis.find((s) => s.title === SCORE_LABELS[key])?.content}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="rounded-xl border border-white/5 bg-white/[0.02] px-5">
+                    <StatRow label="Yelp Rating" value={`${yelpData.rating.toFixed(1)} / 5`} />
+                    <StatRow label="Review Count" value={yelpData.review_count.toLocaleString()} />
+                    {yelpData.price && <StatRow label="Price Tier" value={yelpData.price} />}
+                    {yelpData.competitive_avg_rating !== null && (
+                      <StatRow label="Area Avg. Rating" value={`${yelpData.competitive_avg_rating.toFixed(1)} / 5 (${yelpData.competitor_count} businesses)`} />
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+
             {/* Key metrics */}
             <div>
-              <div className="mono mb-2 text-[9px] uppercase tracking-[0.2em] text-slate-500">
-                Key Metrics
-              </div>
+              <div className="mono mb-2 text-[9px] uppercase tracking-[0.2em] text-slate-500">Key Metrics</div>
               <div className="rounded-xl border border-white/5 bg-white/[0.02] px-5">
                 <StatRow label="Competitors nearby" value={String(details.competitors_nearby)} />
                 <StatRow label="Annual closure rate" value={`${(details.category_closure_rate * 100).toFixed(1)}%`} />
@@ -190,14 +243,11 @@ export default function ReportModal({ report, onClose }: ReportModalProps) {
               <div className="grid grid-cols-2 gap-4">
                 {generated.strengths.length > 0 && (
                   <div>
-                    <div className="mono mb-2 text-[9px] uppercase tracking-[0.2em] text-verdict-proceed/70">
-                      Strengths
-                    </div>
+                    <div className="mono mb-2 text-[9px] uppercase tracking-[0.2em] text-verdict-proceed/70">Strengths</div>
                     <ul className="space-y-1.5">
                       {generated.strengths.map((s, i) => (
                         <li key={i} className="flex items-start gap-2 text-[11px] leading-snug text-slate-400">
-                          <span className="mt-0.5 text-verdict-proceed">+</span>
-                          {s}
+                          <span className="mt-0.5 text-verdict-proceed">+</span>{s}
                         </li>
                       ))}
                     </ul>
@@ -205,14 +255,11 @@ export default function ReportModal({ report, onClose }: ReportModalProps) {
                 )}
                 {generated.risks.length > 0 && (
                   <div>
-                    <div className="mono mb-2 text-[9px] uppercase tracking-[0.2em] text-verdict-avoid/70">
-                      Risk Factors
-                    </div>
+                    <div className="mono mb-2 text-[9px] uppercase tracking-[0.2em] text-verdict-avoid/70">Risk Factors</div>
                     <ul className="space-y-1.5">
                       {generated.risks.map((r, i) => (
                         <li key={i} className="flex items-start gap-2 text-[11px] leading-snug text-slate-400">
-                          <span className="mt-0.5 text-verdict-avoid">−</span>
-                          {r}
+                          <span className="mt-0.5 text-verdict-avoid">−</span>{r}
                         </li>
                       ))}
                     </ul>
@@ -223,9 +270,7 @@ export default function ReportModal({ report, onClose }: ReportModalProps) {
 
             {/* AI summary */}
             <div className="rounded-xl border border-accent-500/20 bg-accent-500/[0.03] p-5">
-              <div className="mono mb-2 text-[9px] uppercase tracking-[0.2em] text-accent-400/70">
-                AI-Powered Insight
-              </div>
+              <div className="mono mb-2 text-[9px] uppercase tracking-[0.2em] text-accent-400/70">AI-Powered Insight</div>
               {aiLoading && (
                 <div className="flex items-center gap-2 text-[11px] text-slate-500">
                   <svg className="animate-spin" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -234,16 +279,8 @@ export default function ReportModal({ report, onClose }: ReportModalProps) {
                   Generating insight…
                 </div>
               )}
-              {aiError && (
-                <p className="text-[11px] leading-relaxed text-slate-500">
-                  Unable to generate AI insight at this time.
-                </p>
-              )}
-              {aiSummary && (
-                <p className="text-sm leading-relaxed text-slate-300">
-                  <BoldText text={aiSummary} />
-                </p>
-              )}
+              {aiError && <p className="text-[11px] leading-relaxed text-slate-500">Unable to generate AI insight at this time.</p>}
+              {aiSummary && <p className="text-sm leading-relaxed text-slate-300"><BoldText text={aiSummary} /></p>}
             </div>
 
             <footer className="mono pb-2 text-center text-[9px] uppercase tracking-[0.2em] text-slate-700">

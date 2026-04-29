@@ -5,7 +5,9 @@ import type { Report } from "@/src/api/types";
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 export async function POST(req: NextRequest) {
-  const report: Report = await req.json();
+  const body = await req.json();
+  const report: Report = body;
+  const yelpData = body.yelpData ?? null;
   const { business, verdict, overall_score, scores, details } = report;
 
   const verdictGuidance: Record<string, string> = {
@@ -13,6 +15,17 @@ export async function POST(req: NextRequest) {
     "PROCEED WITH CAUTION": "The commercial risk profile presents material concerns. Frame risk flags as conditions that must be addressed in negotiation or post-acquisition planning.",
     AVOID: "The commercial risk profile presents significant risk. Frame risk flags as deal-level concerns that challenge the fundamental viability of this acquisition.",
   };
+
+  const yelpSection = yelpData
+    ? `
+YELP MARKET SIGNALS
+Target Yelp Rating: ${yelpData.rating}/5 stars
+Review Volume: ${yelpData.review_count} reviews${yelpData.price ? `\nPrice Tier: ${yelpData.price}` : ""}
+Competitive Rating Position: ${yelpData.competitive_avg_rating !== null ? `${yelpData.rating} vs ${yelpData.competitive_avg_rating} area average (${yelpData.rating >= yelpData.competitive_avg_rating ? "+" : ""}${(yelpData.rating - yelpData.competitive_avg_rating).toFixed(1)})` : "Insufficient competitor data"}
+Customer Sentiment Score: ${yelpData.scores.sentiment}/100
+Market Traction Score: ${yelpData.scores.traction}/100
+Competitive Advantage Score: ${yelpData.scores.competitive}/100`
+    : "";
 
   const message = await client.messages.create({
     model: "claude-haiku-4-5-20251001",
@@ -58,7 +71,7 @@ Direct category competitors in area: ${details.competitors_nearby}
 Annual closure rate (category, area): ${(details.category_closure_rate * 100).toFixed(1)}%
 Average competitor operating tenure: ${details.avg_competitor_age_years.toFixed(1)} years
 Surrounding business category count: ${details.ecosystem_categories}
-
+${yelpSection}
 Write the commercial due diligence location risk section now. Do not add headers, preamble, or sign-off. Output only the risk flags and concluding advisory sentence.`,
       },
     ],

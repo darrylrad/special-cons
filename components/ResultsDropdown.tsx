@@ -9,6 +9,7 @@ interface ResultsDropdownProps {
   hasActiveFilters: boolean;
   onSelect: (r: SearchResult) => void;
   compact?: boolean;
+  enrichedScores?: Record<string, number>;
 }
 
 function verdictColor(verdict?: string) {
@@ -34,6 +35,7 @@ export default function ResultsDropdown({
   hasActiveFilters,
   onSelect,
   compact = false,
+  enrichedScores,
 }: ResultsDropdownProps) {
   // Empty state: no filters set at all
   if (!loading && !hasActiveFilters && results.length === 0) {
@@ -93,8 +95,12 @@ export default function ResultsDropdown({
 
       {!loading && results.length > 0 && (
         <ul className="divide-y divide-white/5">
-          {results.map((r, idx) => (
-            <li key={r.fsq_place_id}>
+          {results.map((r) => {
+            const cachedScore = enrichedScores?.[r.fsq_place_id];
+            const displayScore = cachedScore ?? r.overall_score;
+            const isEnriched = cachedScore !== undefined;
+            return (
+              <li key={r.fsq_place_id}>
               <button
                 onClick={() => onSelect(r)}
                 className="group/item flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition hover:bg-accent-500/5 focus:bg-accent-500/5 focus:outline-none"
@@ -134,14 +140,15 @@ export default function ResultsDropdown({
                   </div>
                 </div>
                 <div className="flex shrink-0 items-center gap-3">
-                  {r.overall_score !== undefined && r.overall_score !== null && (
-                    <span
-                      className={`mono text-sm tabular-nums ${verdictColor(
-                        r.verdict
-                      )}`}
-                    >
-                      {Number(r.overall_score).toFixed(0)}
-                    </span>
+                  {displayScore !== undefined && displayScore !== null && (
+                    <div className="text-right">
+                      <span className={`mono text-sm tabular-nums ${verdictColor(r.verdict)}`}>
+                        {Number(displayScore).toFixed(0)}
+                      </span>
+                      {isEnriched && (
+                        <div className="mono text-[9px] text-slate-600">enriched</div>
+                      )}
+                    </div>
                   )}
                   <svg
                     width="14"
@@ -157,7 +164,8 @@ export default function ResultsDropdown({
                 </div>
               </button>
             </li>
-          ))}
+            );
+          })}
         </ul>
       )}
     </motion.div>

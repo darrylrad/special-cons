@@ -12,7 +12,8 @@ import { useSearch, hasActiveFilters as computeHasFilters } from "@/src/hooks/us
 import { useReport } from "@/src/hooks/useReport";
 import { useCompetitors } from "@/src/hooks/useCompetitors";
 import { useToast } from "./providers";
-import type { SearchResult, SearchFilters } from "@/src/api";
+import type { SearchResult, SearchFilters, YelpCompetitorMap, YelpData } from "@/src/api";
+import { competitorEnrichedScore } from "@/lib/scoring";
 
 declare global {
   interface Window {
@@ -71,6 +72,10 @@ export default function HomePage() {
   const [pulsingCompetitorIdx, setPulsingCompetitorIdx] = useState<number | null>(null);
   const [isTransitioning, setIsTransitioning] = useState(false);
 
+  const [yelpCompetitors, setYelpCompetitors] = useState<YelpCompetitorMap>({});
+  const [yelpData, setYelpData] = useState<YelpData | null>(null);
+  const [yelpLoading, setYelpLoading] = useState(false);
+
   const globeRef = useRef<GlobeHandle | null>(null);
   const { push: pushToast } = useToast();
 
@@ -94,6 +99,60 @@ export default function HomePage() {
   const competitors = useCompetitors(selectedId);
 
   const detailMode = selectedId !== null;
+
+  // Batch-fetch Yelp data for competitors whenever the competitor list or target report changes.
+  // Both must be ready — report.data supplies the coordinates the route needs.
+  useEffect(() => {
+    if (!competitors.data?.length || !report.data) { setYelpCompetitors({}); return; }
+    setYelpCompetitors({});
+    const input = competitors.data.map((c) => ({
+      fsq_place_id: c.fsq_place_id,
+      name: c.name,
+      address: c.address,
+      latitude: c.latitude,
+      longitude: c.longitude,
+    }));
+    fetch("/api/yelp-competitors", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        competitors: input,
+        targetLat: report.data.business.latitude,
+        targetLng: report.data.business.longitude,
+        category: report.data.business.category ?? "",
+      }),
+    })
+      .then((r) => r.json())
+      .then((data) => setYelpCompetitors(data))
+      .catch(() => {});
+  }, [competitors.data, report.data]);
+
+  // Fetch Yelp data for the selected business and cache its enriched score.
+  useEffect(() => {
+    if (!report.data || !selectedId) { setYelpData(null); return; }
+    setYelpData(null);
+    setYelpLoading(true);
+    const controller = new AbortController();
+    const b = report.data.business;
+    fetch("/api/yelp-data", {
+      method: "POST",
+      signal: controller.signal,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: b.name, address: b.address, city: b.locality,
+        state: b.region, latitude: b.latitude, longitude: b.longitude, category: b.category,
+      }),
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        const yelp = data.found ? data : null;
+        setYelpData(yelp);
+      })
+      .catch((e) => { if (e?.name !== "AbortError") setYelpLoading(false); })
+      .finally(() => setYelpLoading(false));
+    return () => controller.abort();
+  }, [report.data?.business.name, report.data?.business.address, selectedId]);
+
 
   // Surface errors as toasts.
   useEffect(() => {
@@ -130,7 +189,9 @@ export default function HomePage() {
           // New: popup data for the map popup
           popup: {
             name: c.name,
-            overallScore: c.overall_score,
+            overallScore: c.overall_score !== undefined
+              ? competitorEnrichedScore(c.overall_score, yelpCompetitors[c.fsq_place_id] ?? null)
+              : undefined,
             verdict: c.verdict,
             scores: c.scores,
           },
@@ -138,7 +199,7 @@ export default function HomePage() {
       });
     }
     return out;
-  }, [report.data, competitors.data, pulsingCompetitorIdx, pulseTick]);
+  }, [report.data, competitors.data, pulsingCompetitorIdx, pulseTick, yelpCompetitors]);
 
   const handleSelect = async (r: SearchResult) => {
     setFocused(false);
@@ -342,6 +403,7 @@ export default function HomePage() {
                         loading={search.isFetching}
                         hasActiveFilters={filtersActive}
                         onSelect={handleSelect}
+
                       />
                     )}
                   </AnimatePresence>
@@ -421,6 +483,9 @@ export default function HomePage() {
               isLoading={report.isLoading}
               onPulseCompetitor={handlePulseCompetitor}
               onBack={handleBack}
+              yelpCompetitors={yelpCompetitors}
+              yelpData={yelpData}
+              yelpLoading={yelpLoading}
             />
           </motion.div>
         )}

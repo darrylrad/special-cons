@@ -17,6 +17,23 @@ const SCORE_NARRATIVES: Record<
   string,
   (value: number) => string
 > = {
+  sentiment: (v) => {
+    if (v >= 80) return "Strong customer sentiment with above-average ratings signals an established, well-regarded operation.";
+    if (v >= 60) return "Solid customer sentiment — ratings are competitive within the category.";
+    if (v >= 40) return "Mixed customer sentiment warrants review of operational quality and service consistency.";
+    return "Below-average customer sentiment is a significant risk signal requiring operational due diligence.";
+  },
+  traction: (v) => {
+    if (v >= 70) return "High review volume confirms an established market presence and consistent customer flow.";
+    if (v >= 50) return "Moderate review volume suggests reasonable market traction with room for growth.";
+    if (v >= 30) return "Limited review volume may indicate a newer operation or weak organic customer acquisition.";
+    return "Very low review volume signals limited market penetration — demand must be independently validated.";
+  },
+  competitive: (v) => {
+    if (v >= 65) return "Target outperforms the local competitive set on customer ratings — a defensible market position.";
+    if (v >= 45) return "Target performs in line with local competitors — no clear rating-based advantage or disadvantage.";
+    return "Target underperforms local competitors on customer ratings, creating churn and market share risk.";
+  },
   saturation: (v) => {
     if (v >= 70) return "The area has relatively few direct competitors, suggesting meaningful room in the market for a new operator.";
     if (v >= 50) return "Competition is moderate — manageable for a well-positioned operator with a clear value proposition.";
@@ -42,6 +59,9 @@ const SCORE_LABELS: Record<string, string> = {
   saturation: "Market Saturation",
   churn: "Business Turnover",
   diversity: "Ecosystem Diversity",
+  sentiment: "Customer Sentiment",
+  traction: "Market Traction",
+  competitive: "Competitive Advantage",
 };
 
 export function generateReport(report: Report): GeneratedReport {
@@ -103,7 +123,16 @@ export function generateReport(report: Report): GeneratedReport {
   return { executiveSummary, scoreAnalysis, strengths, risks };
 }
 
-export function buildPdf(report: Report, generated: GeneratedReport, aiSummary?: string | null) {
+interface YelpData {
+  rating: number;
+  review_count: number;
+  price: string | null;
+  scores: { sentiment: number; traction: number; competitive: number };
+  competitive_avg_rating: number | null;
+  competitor_count: number;
+}
+
+export function buildPdf(report: Report, generated: GeneratedReport, aiSummary?: string | null, yelpData?: YelpData | null) {
   const { jsPDF } = require("jspdf");
   const doc = new jsPDF({ unit: "mm", format: "a4" });
   const { business, overall_score, verdict, scores, details } = report;
@@ -231,6 +260,61 @@ export function buildPdf(report: Report, generated: GeneratedReport, aiSummary?:
     doc.roundedRect(margin, y, (value / 100) * contentW, 3, 1, 1, "F");
     y += 9;
   });
+
+  // Yelp signals
+  if (yelpData) {
+    checkPage(20);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.setTextColor(20, 22, 35);
+    doc.text("YELP SIGNALS", margin, y);
+    y += 8;
+
+    const yelpScores: [string, number][] = [
+      ["Customer Sentiment", yelpData.scores.sentiment],
+      ["Market Traction", yelpData.scores.traction],
+      ["Competitive Advantage", yelpData.scores.competitive],
+    ];
+
+    yelpScores.forEach(([label, value]) => {
+      checkPage(16);
+      const [br, bg, bb] = value >= 65 ? [34, 211, 162] : value >= 40 ? [245, 181, 68] : [240, 106, 106];
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(9);
+      doc.setTextColor(50, 55, 75);
+      doc.text(label, margin, y);
+      doc.setTextColor(br, bg, bb);
+      doc.setFont("helvetica", "bold");
+      doc.text(`${value.toFixed(0)}`, pageW - margin, y, { align: "right" });
+      y += 4;
+      doc.setFillColor(220, 224, 235);
+      doc.roundedRect(margin, y, contentW, 3, 1, 1, "F");
+      doc.setFillColor(br, bg, bb);
+      doc.roundedRect(margin, y, (value / 100) * contentW, 3, 1, 1, "F");
+      y += 9;
+    });
+
+    checkPage(8);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.setTextColor(80, 90, 110);
+    doc.text("Yelp Rating", margin, y);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(20, 22, 35);
+    doc.text(`${yelpData.rating.toFixed(1)} / 5  (${yelpData.review_count.toLocaleString()} reviews)`, pageW - margin, y, { align: "right" });
+    y += 7;
+
+    if (yelpData.competitive_avg_rating !== null) {
+      checkPage(8);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(80, 90, 110);
+      doc.text("Area avg. rating", margin, y);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(20, 22, 35);
+      doc.text(`${yelpData.competitive_avg_rating.toFixed(1)} / 5`, pageW - margin, y, { align: "right" });
+      y += 7;
+    }
+  }
 
   checkPage(10);
   doc.setDrawColor(220, 224, 235);
