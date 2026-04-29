@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
-import type { Competitor, Report } from "@/src/api";
+import type { Competitor, Report, YelpData, YelpCompetitorMap } from "@/src/api";
+import { enrichedScore, scoreTone } from "@/lib/scoring";
 import VerdictBadge from "./VerdictBadge";
 import ScoreBar from "./ScoreBar";
 import CompetitorList from "./CompetitorList";
@@ -14,21 +15,22 @@ interface DetailPanelProps {
   isLoading: boolean;
   onPulseCompetitor: (index: number) => void;
   onBack: () => void;
+  yelpCompetitors: YelpCompetitorMap;
+  yelpData: YelpData | null;
+  yelpLoading: boolean;
 }
 
-const SCORE_TOOLTIPS: Record<string, string> = {
+const LOCATION_TOOLTIPS: Record<string, string> = {
   Saturation: "How crowded the market is nearby. Higher = less saturated, more room.",
   Turnover: "Rate businesses in this category open and close. Higher = more stable turnover.",
-
   Diversity: "Variety of surrounding business categories. Higher = healthier ecosystem.",
-
 };
 
-function overallTone(score: number) {
-  if (score >= 65) return { color: "text-verdict-proceed", ring: "ring-verdict-proceed/30", glow: "drop-shadow-[0_0_18px_rgba(34,211,162,0.35)]" };
-  if (score >= 40) return { color: "text-verdict-caution", ring: "ring-verdict-caution/30", glow: "drop-shadow-[0_0_18px_rgba(245,181,68,0.35)]" };
-  return { color: "text-verdict-avoid", ring: "ring-verdict-avoid/30", glow: "drop-shadow-[0_0_18px_rgba(240,106,106,0.35)]" };
-}
+const BUSINESS_TOOLTIPS: Record<string, string> = {
+  Sentiment: "Customer satisfaction derived from Yelp star rating. Higher = better reviews.",
+  Traction: "Market presence derived from Yelp review volume. Higher = more established.",
+  Competitive: "This business's rating vs the average of nearby competitors. Higher = outperforms the area.",
+};
 
 function SkeletonLine({ className = "" }: { className?: string }) {
   return <div className={`shimmer rounded-md ${className}`} />;
@@ -50,7 +52,7 @@ function DetailSkeleton() {
         <SkeletonLine className="h-4 w-1/3" />
       </div>
       <div className="space-y-4">
-        {Array.from({ length: 5 }).map((_, i) => (
+        {Array.from({ length: 3 }).map((_, i) => (
           <div key={i} className="space-y-2">
             <SkeletonLine className="h-3 w-24" />
             <SkeletonLine className="h-1.5 w-full" />
@@ -66,26 +68,12 @@ function DetailSkeleton() {
   );
 }
 
-function StatCard({
-  label,
-  value,
-  caption,
-}: {
-  label: string;
-  value: string;
-  caption: string;
-}) {
+function StatCard({ label, value, caption }: { label: string; value: string; caption: string }) {
   return (
     <div className="rounded-xl border border-white/5 bg-white/[0.02] p-4 transition hover:border-accent-500/20 hover:bg-accent-500/[0.03]">
-      <div className="mono text-[10px] uppercase tracking-[0.14em] text-slate-500">
-        {label}
-      </div>
-      <div className="mt-2 text-xl font-semibold text-slate-100 tabular-nums">
-        {value}
-      </div>
-      <div className="mt-1 text-[11px] leading-snug text-slate-500">
-        {caption}
-      </div>
+      <div className="mono text-[10px] uppercase tracking-[0.14em] text-slate-500">{label}</div>
+      <div className="mt-2 text-xl font-semibold text-slate-100 tabular-nums">{value}</div>
+      <div className="mt-1 text-[11px] leading-snug text-slate-500">{caption}</div>
     </div>
   );
 }
@@ -95,20 +83,12 @@ function SectionHeader({ children, index }: { children: React.ReactNode; index: 
     <div className="mb-4 flex items-center gap-3">
       <span className="mono text-[10px] tracking-[0.2em] text-slate-600">{index}</span>
       <div className="h-px flex-1 bg-white/5" />
-      <h3 className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate-400">
-        {children}
-      </h3>
+      <h3 className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate-400">{children}</h3>
     </div>
   );
 }
 
-export default function DetailPanel({
-  report,
-  competitors,
-  isLoading,
-  onPulseCompetitor,
-  onBack,
-}: DetailPanelProps) {
+export default function DetailPanel({ report, competitors, isLoading, onPulseCompetitor, onBack, yelpCompetitors, yelpData, yelpLoading }: DetailPanelProps) {
   return (
     <motion.aside
       initial={{ x: "100%", opacity: 0 }}
@@ -117,7 +97,6 @@ export default function DetailPanel({
       transition={{ duration: 0.6, ease: [0.4, 0, 0.2, 1] }}
       className="glass-strong relative z-20 flex h-full w-full flex-col overflow-hidden border-l border-white/5 shadow-panel"
     >
-      {/* Top bar with back button */}
       <div className="flex items-center justify-between border-b border-white/5 px-6 py-4">
         <button
           onClick={onBack}
@@ -128,12 +107,9 @@ export default function DetailPanel({
           </svg>
           <span className="mono uppercase tracking-[0.16em]">Back to globe</span>
         </button>
-        <div className="mono text-[10px] uppercase tracking-[0.18em] text-slate-600">
-          Risk report
-        </div>
+        <div className="mono text-[10px] uppercase tracking-[0.18em] text-slate-600">Risk report</div>
       </div>
 
-      {/* Scrollable content */}
       <div className="flex-1 overflow-y-auto">
         {isLoading || !report ? (
           <DetailSkeleton />
@@ -142,6 +118,9 @@ export default function DetailPanel({
             report={report}
             competitors={competitors}
             onPulseCompetitor={onPulseCompetitor}
+            yelpData={yelpData}
+            yelpLoading={yelpLoading}
+            yelpCompetitors={yelpCompetitors}
           />
         )}
       </div>
@@ -153,32 +132,37 @@ function ReportBody({
   report,
   competitors,
   onPulseCompetitor,
+  yelpData,
+  yelpLoading,
+  yelpCompetitors,
 }: {
   report: Report;
   competitors: Competitor[] | undefined;
   onPulseCompetitor: (index: number) => void;
+  yelpData: YelpData | null;
+  yelpLoading: boolean;
+  yelpCompetitors: YelpCompetitorMap;
 }) {
   const [showReport, setShowReport] = useState(false);
   const { business, verdict, overall_score, scores, details } = report;
-  const tone = overallTone(overall_score);
   const crumbs = business.category.split(">").map((s) => s.trim()).filter(Boolean);
+
+  const finalScore = enrichedScore(overall_score, yelpData);
+  const tone = scoreTone(finalScore);
 
   return (
     <div className="space-y-10 px-8 py-8">
-      {/* ----- Header ------------------------------------------------------ */}
+      {/* Header */}
       <motion.header
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.05 }}
         className="space-y-4"
       >
-        {/* Breadcrumbs */}
         <nav className="flex flex-wrap items-center gap-1.5 text-[11px] text-slate-500">
           {crumbs.map((c, i) => (
             <span key={i} className="flex items-center gap-1.5">
-              <span className={i === crumbs.length - 1 ? "text-accent-300" : ""}>
-                {c}
-              </span>
+              <span className={i === crumbs.length - 1 ? "text-accent-300" : ""}>{c}</span>
               {i < crumbs.length - 1 && <span className="text-slate-700">/</span>}
             </span>
           ))}
@@ -189,13 +173,11 @@ function ReportBody({
             {business.name}
           </h2>
           <div className="shrink-0 text-right">
-            <div
-              className={`mono text-[clamp(2.25rem,4vw,3.25rem)] font-light leading-none tabular-nums ${tone.color} ${tone.glow}`}
-            >
-              {overall_score.toFixed(1)}
+            <div className={`mono text-[clamp(2.25rem,4vw,3.25rem)] font-light leading-none tabular-nums ${tone.color} ${tone.glow}`}>
+              {finalScore.toFixed(1)}
             </div>
             <div className="mono mt-1 text-[10px] uppercase tracking-[0.2em] text-slate-600">
-              / 100 overall
+              / 100{yelpData ? " · enriched" : yelpLoading ? " · loading…" : ""}
             </div>
           </div>
         </div>
@@ -215,78 +197,97 @@ function ReportBody({
         </div>
 
         {showReport && (
-          <ReportModal report={report} onClose={() => setShowReport(false)} />
+          <ReportModal
+            report={report}
+            onClose={() => setShowReport(false)}
+            yelpData={yelpData}
+            isYelpLoading={yelpLoading}
+          />
         )}
       </motion.header>
 
-      {/* ----- Location --------------------------------------------------- */}
+      {/* Location */}
       <section>
         <SectionHeader index="01">Location</SectionHeader>
         <div className="rounded-xl border border-white/5 bg-white/[0.02] p-5">
           <div className="text-sm leading-relaxed text-slate-200">
             <div>{business.address}</div>
-            <div className="text-slate-400">
-              {business.locality}, {business.region} {business.postcode}
-            </div>
+            <div className="text-slate-400">{business.locality}, {business.region} {business.postcode}</div>
           </div>
           <div className="mono mt-3 flex items-center gap-3 border-t border-white/5 pt-3 text-[11px] text-slate-500">
             <span className="uppercase tracking-widest text-slate-600">Lat</span>
-            <span className="text-slate-300 tabular-nums">
-              {business.latitude.toFixed(4)}
-            </span>
+            <span className="text-slate-300 tabular-nums">{business.latitude.toFixed(4)}</span>
             <span className="text-slate-700">·</span>
             <span className="uppercase tracking-widest text-slate-600">Lng</span>
-            <span className="text-slate-300 tabular-nums">
-              {business.longitude.toFixed(4)}
-            </span>
+            <span className="text-slate-300 tabular-nums">{business.longitude.toFixed(4)}</span>
           </div>
         </div>
       </section>
 
-      {/* ----- Score breakdown -------------------------------------------- */}
+      {/* Location score */}
       <section>
-        <SectionHeader index="02">Signal breakdown</SectionHeader>
+        <SectionHeader index="02">Location Score</SectionHeader>
+        <div className="flex items-center justify-between rounded-xl border border-white/5 bg-white/[0.02] px-5 py-3">
+          <span className="text-[11px] text-slate-400">Base score (saturation · turnover · diversity)</span>
+          <span className={`mono text-lg font-light tabular-nums ${scoreTone(overall_score).color}`}>
+            {overall_score.toFixed(1)}
+          </span>
+        </div>
+      </section>
+
+      {/* Location breakdown */}
+      <section>
+        <SectionHeader index="03">Location breakdown</SectionHeader>
         <div className="space-y-5">
-          <ScoreBar label="Saturation" value={scores.saturation} tooltip={SCORE_TOOLTIPS.Saturation} />
-          <ScoreBar label="Turnover" value={scores.churn} tooltip={SCORE_TOOLTIPS.Turnover} />
-
-          <ScoreBar label="Diversity" value={scores.diversity} tooltip={SCORE_TOOLTIPS.Diversity} />
-
+          <ScoreBar label="Saturation" value={scores.saturation} tooltip={LOCATION_TOOLTIPS.Saturation} />
+          <ScoreBar label="Turnover" value={scores.churn} tooltip={LOCATION_TOOLTIPS.Turnover} />
+          <ScoreBar label="Diversity" value={scores.diversity} tooltip={LOCATION_TOOLTIPS.Diversity} />
         </div>
       </section>
 
-      {/* ----- Stats grid ------------------------------------------------- */}
+      {/* Business breakdown — only when Yelp data is available */}
+      {(yelpData || yelpLoading) && (
+        <section>
+          <SectionHeader index="04">Business breakdown</SectionHeader>
+          {yelpLoading && !yelpData ? (
+            <div className="space-y-5">
+              {[0, 1, 2].map((i) => (
+                <div key={i} className="space-y-2">
+                  <SkeletonLine className="h-3 w-28" />
+                  <SkeletonLine className="h-1.5 w-full" />
+                </div>
+              ))}
+            </div>
+          ) : yelpData ? (
+            <div className="space-y-5">
+              <ScoreBar label="Sentiment" value={yelpData.scores.sentiment} tooltip={BUSINESS_TOOLTIPS.Sentiment} />
+              <ScoreBar label="Traction" value={yelpData.scores.traction} tooltip={BUSINESS_TOOLTIPS.Traction} />
+              <ScoreBar label="Competitive" value={yelpData.scores.competitive} tooltip={BUSINESS_TOOLTIPS.Competitive} />
+            </div>
+          ) : null}
+        </section>
+      )}
+
+      {/* Stats */}
       <section>
-        <SectionHeader index="03">By the numbers</SectionHeader>
+        <SectionHeader index="05">By the numbers</SectionHeader>
         <div className="grid grid-cols-2 gap-3">
-          <StatCard
-            label="Competitors"
-            value={String(details.competitors_nearby)}
-            caption="Direct rivals within a short radius"
-          />
-          <StatCard
-            label="Closure rate"
-            value={`${(details.category_closure_rate * 100).toFixed(1)}%`}
-            caption="Annual rate for this category nearby"
-          />
-          <StatCard
-            label="Avg. age"
-            value={`${details.avg_competitor_age_years.toFixed(1)} years`}
-            caption="How long competitors have operated"
-          />
-          <StatCard
-            label="Ecosystem"
-            value={String(details.ecosystem_categories)}
-            caption="Distinct categories surrounding this spot"
-          />
+          <StatCard label="Competitors" value={String(details.competitors_nearby)} caption="Direct rivals within a short radius" />
+          <StatCard label="Closure rate" value={`${(details.category_closure_rate * 100).toFixed(1)}%`} caption="Annual rate for this category nearby" />
+          <StatCard label="Avg. age" value={`${details.avg_competitor_age_years.toFixed(1)} years`} caption="How long competitors have operated" />
+          <StatCard label="Ecosystem" value={String(details.ecosystem_categories)} caption="Distinct categories surrounding this spot" />
         </div>
       </section>
 
-      {/* ----- Competitors ------------------------------------------------ */}
+      {/* Competitors */}
       <section>
-        <SectionHeader index="04">Nearby competitors</SectionHeader>
+        <SectionHeader index="06">Nearby competitors</SectionHeader>
         {competitors ? (
-          <CompetitorList competitors={competitors} onPulse={onPulseCompetitor} />
+          <CompetitorList
+            competitors={competitors}
+            onPulse={onPulseCompetitor}
+            yelpMap={yelpCompetitors}
+          />
         ) : (
           <div className="space-y-2">
             <SkeletonLine className="h-14 w-full" />

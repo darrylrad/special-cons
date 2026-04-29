@@ -72,6 +72,24 @@ export interface Competitor {
   scores?: CompetitorScores;
 }
 
+export interface YelpData {
+  found: true;
+  rating: number;
+  review_count: number;
+  price: string | null;
+  scores: { sentiment: number; traction: number; competitive: number };
+  competitive_avg_rating: number | null;
+  competitor_count: number;
+}
+
+export interface YelpCompetitorData {
+  rating: number;
+  review_count: number;
+  scores: { sentiment: number; traction: number; competitive: number };
+}
+
+export type YelpCompetitorMap = Record<string, YelpCompetitorData>;
+
 // Unified shape for any function in the API client.
 export interface SearchFilters {
   city?: string;
