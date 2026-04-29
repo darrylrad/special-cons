@@ -6,9 +6,10 @@ import type {
 } from "./types";
 import { ApiError } from "./types";
 
+// Empty string = same-origin Next.js API routes (no Railway hop).
+// NEXT_PUBLIC_API_BASE_URL can override for local dev pointing at Flask if needed.
 const BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "") ||
-  "http://localhost:5000";
+  process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "") ?? "";
 
 async function request<T>(path: string): Promise<T> {
   const res = await fetch(`${BASE_URL}${path}`, {
