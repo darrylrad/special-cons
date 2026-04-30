@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { Report, YelpData } from "@/src/api/types";
-import { generateReport, buildPdf } from "@/lib/reportUtils";
+import { generateReport, buildPdf, type AiInsight } from "@/lib/reportUtils";
 import { enrichedScore, scoreTone, scoreToVerdict } from "@/lib/scoring";
 import ScoreBar from "./ScoreBar";
 import VerdictBadge from "./VerdictBadge";
@@ -46,7 +46,6 @@ function StatRow({ label, value }: { label: string; value: string }) {
 export default function ReportModal({ report, onClose, yelpData, isYelpLoading }: ReportModalProps) {
   const { business, overall_score, scores, details } = report;
   const generated = generateReport(report);
-  type AiInsight = { opportunity: string; risk: string; competitor: string; nextStep: string };
   const [aiInsight, setAiInsight] = useState<AiInsight | null>(null);
   const [aiLoading, setAiLoading] = useState(true);
   const [aiError, setAiError] = useState(false);
@@ -69,8 +68,7 @@ export default function ReportModal({ report, onClose, yelpData, isYelpLoading }
   }, []);
 
   function handleDownload() {
-    const aiSummary = aiInsight ? `Key Opportunity: ${aiInsight.opportunity}\n\nMain Risk: ${aiInsight.risk}\n\nCompetitor Concern: ${aiInsight.competitor}\n\nRecommended Next Step: ${aiInsight.nextStep}` : null;
-    const doc = buildPdf(enrichedReport, generated, aiSummary, yelpData ?? undefined);
+    const doc = buildPdf(enrichedReport, generated, null, yelpData ?? undefined, aiInsight);
     const slug = business.name.toLowerCase().replace(/\s+/g, "-");
     doc.save(`acqment-report-${slug}.pdf`);
   }
