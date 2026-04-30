@@ -243,6 +243,7 @@ function ReportBody({
           <ScoreBar label="Turnover" value={scores.churn} tooltip={LOCATION_TOOLTIPS.Turnover} />
           <ScoreBar label="Diversity" value={scores.diversity} tooltip={LOCATION_TOOLTIPS.Diversity} />
         </div>
+        <p className="mono mt-3 text-[9px] text-slate-600">Source: Foursquare Places · ZIP-level closure records · internal scoring model</p>
       </section>
 
       {/* Business breakdown — only when Yelp data is available */}
@@ -263,6 +264,7 @@ function ReportBody({
               <ScoreBar label="Sentiment" value={yelpData.scores.sentiment} tooltip={BUSINESS_TOOLTIPS.Sentiment} />
               <ScoreBar label="Traction" value={yelpData.scores.traction} tooltip={BUSINESS_TOOLTIPS.Traction} />
               <ScoreBar label="Competitive" value={yelpData.scores.competitive} tooltip={BUSINESS_TOOLTIPS.Competitive} />
+              <p className="mono text-[9px] text-slate-600">Source: Yelp Fusion API</p>
             </div>
           ) : null}
         </section>
