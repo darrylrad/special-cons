@@ -36,10 +36,15 @@ export default function LoginPage() {
     setLoading(true);
     try {
       if (mode === "signup") {
-        const { error: signUpError } = await supabase.auth.signUp({ email, password });
+        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({ email, password });
         if (signUpError) throw signUpError;
-        setMessage("Account created — check your email to confirm, then log in.");
-        setMode("login");
+        if (signUpData.session) {
+          router.push("/");
+          router.refresh();
+        } else {
+          setMessage("Account created — check your email to confirm, then log in.");
+          setMode("login");
+        }
       } else {
         const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
         if (signInError) throw signInError;
