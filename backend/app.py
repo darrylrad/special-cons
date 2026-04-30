@@ -12,6 +12,14 @@ DATABASE_URL = os.environ.get("DATABASE_URL")
 
 _pool = psycopg2.pool.ThreadedConnectionPool(1, 10, DATABASE_URL)
 
+EXCLUDED_CATEGORIES = (
+    'Arts and Entertainment',
+    'Community and Government',
+    'Event',
+    'Landmarks and Outdoors',
+    'Travel and Transportation',
+)
+
 
 @contextmanager
 def get_conn():
@@ -38,8 +46,9 @@ def search():
     min_years = request.args.get('min_years', type=float)
     max_years = request.args.get('max_years', type=float)
 
-    conditions = []
-    params = []
+    placeholders = ','.join(['%s'] * len(EXCLUDED_CATEGORIES))
+    conditions = [f"level1 NOT IN ({placeholders})"]
+    params = list(EXCLUDED_CATEGORIES)
 
     if query:
         conditions.append(
@@ -95,9 +104,13 @@ def search():
 # ---------------------------------------------------------------------------
 @app.route('/api/categories')
 def categories():
+    placeholders = ','.join(['%s'] * len(EXCLUDED_CATEGORIES))
     with get_conn() as conn:
         with conn.cursor() as cur:
-            cur.execute("SELECT DISTINCT level1 FROM businesses WHERE level1 IS NOT NULL ORDER BY level1")
+            cur.execute(
+                f"SELECT DISTINCT level1 FROM businesses WHERE level1 IS NOT NULL AND level1 NOT IN ({placeholders}) ORDER BY level1",
+                EXCLUDED_CATEGORIES
+            )
             results = [row[0] for row in cur.fetchall()]
     return jsonify(results)
 

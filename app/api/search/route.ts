@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
                   THEN round((date_part('day', now() - date_created::timestamp) / 365.25)::numeric, 1)
                   ELSE NULL END AS age_years
       FROM businesses
-      WHERE TRUE
+      WHERE level1 NOT IN ('Arts and Entertainment','Community and Government','Event','Landmarks and Outdoors','Travel and Transportation')
       ${query    ? sql`AND (name ILIKE ${"%" + query + "%"} OR locality ILIKE ${"%" + query + "%"} OR level2 ILIKE ${"%" + query + "%"})` : sql``}
       ${city     ? sql`AND locality ILIKE ${"%" + city + "%"}` : sql``}
       ${category ? sql`AND level1 = ${category}` : sql``}
