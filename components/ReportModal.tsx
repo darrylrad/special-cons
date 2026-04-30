@@ -33,16 +33,6 @@ const SCORE_LABELS: Record<string, string> = {
   competitive: "Competitive Advantage",
 };
 
-function BoldText({ text }: { text: string }) {
-  const parts = text.split(/\*\*(.*?)\*\*/g);
-  return (
-    <>
-      {parts.map((part, i) =>
-        i % 2 === 1 ? <strong key={i} className="text-slate-200 font-semibold">{part}</strong> : part
-      )}
-    </>
-  );
-}
 
 function StatRow({ label, value }: { label: string; value: string }) {
   return (
@@ -56,7 +46,8 @@ function StatRow({ label, value }: { label: string; value: string }) {
 export default function ReportModal({ report, onClose, yelpData, isYelpLoading }: ReportModalProps) {
   const { business, overall_score, scores, details } = report;
   const generated = generateReport(report);
-  const [aiSummary, setAiSummary] = useState<string | null>(null);
+  type AiInsight = { opportunity: string; risk: string; competitor: string; nextStep: string };
+  const [aiInsight, setAiInsight] = useState<AiInsight | null>(null);
   const [aiLoading, setAiLoading] = useState(true);
   const [aiError, setAiError] = useState(false);
 
@@ -72,12 +63,13 @@ export default function ReportModal({ report, onClose, yelpData, isYelpLoading }
       body: JSON.stringify({ ...enrichedReport, yelpData }),
     })
       .then((r) => r.json())
-      .then((data) => setAiSummary(data.summary))
+      .then((data) => setAiInsight(data.insight ?? null))
       .catch(() => setAiError(true))
       .finally(() => setAiLoading(false));
   }, []);
 
   function handleDownload() {
+    const aiSummary = aiInsight ? `Key Opportunity: ${aiInsight.opportunity}\n\nMain Risk: ${aiInsight.risk}\n\nCompetitor Concern: ${aiInsight.competitor}\n\nRecommended Next Step: ${aiInsight.nextStep}` : null;
     const doc = buildPdf(enrichedReport, generated, aiSummary, yelpData ?? undefined);
     const slug = business.name.toLowerCase().replace(/\s+/g, "-");
     doc.save(`acqment-report-${slug}.pdf`);
@@ -282,7 +274,21 @@ export default function ReportModal({ report, onClose, yelpData, isYelpLoading }
                 </div>
               )}
               {aiError && <p className="text-[11px] leading-relaxed text-slate-500">Unable to generate AI insight at this time.</p>}
-              {aiSummary && <p className="text-sm leading-relaxed text-slate-300"><BoldText text={aiSummary} /></p>}
+              {aiInsight && (
+                <div className="space-y-4">
+                  {[
+                    { label: "Key Opportunity", text: aiInsight.opportunity, color: "text-verdict-proceed" },
+                    { label: "Main Risk",        text: aiInsight.risk,        color: "text-verdict-avoid" },
+                    { label: "Competitor Concern", text: aiInsight.competitor, color: "text-verdict-caution" },
+                    { label: "Recommended Next Step", text: aiInsight.nextStep, color: "text-accent-300" },
+                  ].map(({ label, text, color }) => (
+                    <div key={label}>
+                      <div className={`mono mb-1 text-[9px] uppercase tracking-[0.18em] ${color}`}>{label}</div>
+                      <p className="text-sm leading-relaxed text-slate-300">{text}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             <footer className="mono pb-2 text-center text-[9px] uppercase tracking-[0.2em] text-slate-700">
