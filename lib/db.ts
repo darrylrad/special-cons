@@ -14,6 +14,9 @@ const sql =
     max: 1,
     connect_timeout: 30,
     prepare: false,
+    connection: {
+      statement_timeout: 20000,
+    },
   });
 
 if (process.env.NODE_ENV !== "production") globalThis._sql = sql;
