@@ -1,15 +1,14 @@
 import type {
   Competitor,
-  AcquiraApi,
+  AcqmentApi,
   Report,
   SearchResult,
 } from "./types";
 import { ApiError } from "./types";
 
-// Empty string = same-origin Next.js API routes (no Railway hop).
-// NEXT_PUBLIC_API_BASE_URL can override for local dev pointing at Flask if needed.
 const BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "") ?? "";
+  process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "") ||
+  "http://localhost:5000";
 
 async function request<T>(path: string): Promise<T> {
   const res = await fetch(`${BASE_URL}${path}`, {
@@ -78,7 +77,9 @@ interface RawReport {
 
   };
   details: {
-    competitors_nearby?: number;
+    // Backend sends these names; frontend wants competitors_nearby,
+    // category_closure_rate, avg_competitor_age_years, ecosystem_categories.
+    competitors_in_zip?: number;
     historical_closure_rate?: number;
     avg_competitor_age_years?: number;
     ecosystem_diversity?: number;
@@ -142,7 +143,7 @@ function normalizeReport(raw: RawReport): Report {
 
     },
     details: {
-      competitors_nearby: Number(raw.details.competitors_nearby ?? 0),
+      competitors_nearby: Number(raw.details.competitors_in_zip ?? 0),
       category_closure_rate: Number(raw.details.historical_closure_rate ?? 0),
       avg_competitor_age_years: Number(raw.details.avg_competitor_age_years ?? 0),
       ecosystem_categories: Number(raw.details.ecosystem_diversity ?? 0),
@@ -179,7 +180,7 @@ function normalizeCompetitor(raw: RawCompetitor): Competitor {
 
 // -----------------------------------------------------------------------------
 
-export const realApi: AcquiraApi = {
+export const realApi: AcqmentApi = {
   async search(query, filters) {
     const params = new URLSearchParams();
     if (query) params.set("q", query);

@@ -98,7 +98,7 @@ export interface SearchFilters {
   maxYears?: number;
 }
 
-export interface AcquiraApi {
+export interface AcqmentApi {
   search(query: string, filters?: SearchFilters): Promise<SearchResult[]>;
   getCategories(): Promise<string[]>;
   getReport(placeId: string): Promise<Report>;

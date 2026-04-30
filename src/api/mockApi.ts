@@ -1,6 +1,6 @@
 import type {
   Competitor,
-  AcquiraApi,
+  AcqmentApi,
   Report,
   SearchResult,
   Verdict,
@@ -166,7 +166,7 @@ function matchesQuery(b: MockBusiness, query: string, city?: string) {
   return queryMatches && b.result.locality.toLowerCase().includes(city.trim().toLowerCase());
 }
 
-export const mockApi: AcquiraApi = {
+export const mockApi: AcqmentApi = {
   async search(query, filters?: SearchFilters) {
     await delay(jitter());
     if (query.trim().toLowerCase() === "notfound") return [];
