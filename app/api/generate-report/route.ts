@@ -29,19 +29,23 @@ Competitive Advantage Score: ${yelpData.scores.competitive}/100`
 
   const message = await client.messages.create({
     model: "claude-haiku-4-5-20251001",
-    max_tokens: 600,
+    max_tokens: 800,
     system: `You are a senior commercial due diligence analyst at a boutique M&A advisory firm specialising in small business acquisitions.
 
-You write sections of commercial due diligence reports for transaction advisors and business brokers. Your outputs are used directly in client-facing advisory reports and must meet professional standards.
+You write structured insight sections for transaction advisors and business brokers. Your outputs are used directly in client-facing advisory reports and must meet professional standards.
 
-Your language is precise, formal, and risk-oriented. You identify commercial risk flags — not opportunities. You do not use consumer-friendly language, marketing language, or generic phrases. You write as if a sophisticated buyer's advisor will scrutinise every word.
+Your language is precise, formal, and risk-oriented. You do not use consumer-friendly language, marketing language, or generic phrases. You write as if a sophisticated buyer's advisor will scrutinise every word.
 
-Output format: 2–3 concise risk flag statements followed by one concluding advisory sentence. Each risk flag begins with the risk area in bold (e.g. **Market Saturation**, **Category Attrition**, **Ecosystem Dependency**). The concluding sentence states whether the location profile supports, conditionally supports, or does not support proceeding to full due diligence.`,
+You must respond with a valid JSON object only — no markdown, no preamble, no explanation. The object must have exactly these four keys:
+- "opportunity": One sentence on the strongest positive signal in this location profile.
+- "risk": One sentence on the most material commercial risk.
+- "competitor": One sentence on the competitive landscape and what it means for the acquisition.
+- "nextStep": One actionable sentence on what the advisor should validate before proceeding.`,
 
     messages: [
       {
         role: "user",
-        content: `Prepare the commercial due diligence location risk section for the following acquisition target.
+        content: `Prepare the AI-powered insight section for the following acquisition target.
 
 TARGET BUSINESS
 Name: ${business.name}
@@ -55,15 +59,12 @@ ${verdictGuidance[verdict] ?? ""}
 
 COMMERCIAL SIGNALS
 Market Saturation Score: ${scores.saturation.toFixed(1)}/100
-— Higher score indicates lower saturation (less competitive pressure)
 — Interpretation: ${scores.saturation >= 65 ? "Moderate to low competitive density" : scores.saturation >= 40 ? "Elevated competitive density" : "High competitive density — market is crowded"}
 
 Category Stability Score: ${scores.churn.toFixed(1)}/100
-— Higher score indicates lower historical closure rate (more stable category)
 — Interpretation: ${scores.churn >= 65 ? "Category demonstrates stable operating conditions" : scores.churn >= 40 ? "Category shows moderate attrition" : "Category shows elevated historical attrition"}
 
 Ecosystem Diversity Score: ${scores.diversity.toFixed(1)}/100
-— Higher score indicates broader surrounding business mix (healthier foot traffic drivers)
 — Interpretation: ${scores.diversity >= 65 ? "Diverse surrounding commercial ecosystem" : scores.diversity >= 40 ? "Moderate surrounding commercial diversity" : "Limited surrounding commercial diversity"}
 
 SUPPORTING METRICS
@@ -72,11 +73,18 @@ Annual closure rate (category, area): ${(details.category_closure_rate * 100).to
 Average competitor operating tenure: ${details.avg_competitor_age_years.toFixed(1)} years
 Surrounding business category count: ${details.ecosystem_categories}
 ${yelpSection}
-Write the commercial due diligence location risk section now. Do not add headers, preamble, or sign-off. Output only the risk flags and concluding advisory sentence.`,
+Respond with the JSON object only.`,
       },
     ],
   });
 
-  const text = message.content[0].type === "text" ? message.content[0].text : "";
-  return NextResponse.json({ summary: text });
+  const raw = message.content[0].type === "text" ? message.content[0].text : "";
+  try {
+    const jsonStr = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
+    const insight = JSON.parse(jsonStr);
+    return NextResponse.json({ insight });
+  } catch {
+    console.error("[generate-report] JSON parse failed:", raw);
+    return NextResponse.json({ insight: null });
+  }
 }
