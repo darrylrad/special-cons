@@ -104,7 +104,7 @@ export default function HomePage() {
   const filtersActive = computeHasFilters(query, filters, YEAR_MAX);
 
   // ---- Data hooks ------------------------------------------------------------
-  const search = useSearch(query, filters, filtersActive);
+  const search = useSearch(query, filters);
   const report = useReport(selectedId);
   const competitors = useCompetitors(selectedId);
 
