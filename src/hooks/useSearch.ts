@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api, type SearchFilters } from "@/src/api";
+import { YEAR_MAX } from "@/components/FilterChips";
 
 function useDebouncedValue<T>(value: T, delayMs: number): T {
   const [debounced, setDebounced] = useState(value);
@@ -28,13 +29,10 @@ export function hasActiveFilters(
   return false;
 }
 
-export function useSearch(
-  query: string,
-  filters: SearchFilters,
-  enabled: boolean
-) {
+export function useSearch(query: string, filters: SearchFilters) {
   const debouncedQuery = useDebouncedValue(query.trim(), 250);
   const debouncedFilters = useDebouncedValue(filters, 250);
+  const enabled = hasActiveFilters(debouncedQuery, debouncedFilters, YEAR_MAX);
 
   return useQuery({
     queryKey: ["search", debouncedQuery, debouncedFilters],
