@@ -5,6 +5,8 @@ declare global {
   var _sql: ReturnType<typeof postgres> | undefined;
 }
 
+console.log("[db] cold start —", new Date().toISOString());
+
 const sql =
   globalThis._sql ??
   postgres(process.env.DATABASE_URL!, {
