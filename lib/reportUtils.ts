@@ -160,7 +160,7 @@ export function buildPdf(report: Report, generated: GeneratedReport, aiSummary?:
     doc.setFont("helvetica", "normal");
     doc.setFontSize(7);
     doc.setTextColor(100, 110, 140);
-    doc.text("Acquira · Risk Screen", margin, pageH - 5);
+    doc.text("Acqment · Risk Screen", margin, pageH - 5);
     doc.text(`Page ${pg} of ${total}  ·  Confidential`, pageW - margin, pageH - 5, { align: "right" });
   }
 

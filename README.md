@@ -1,4 +1,4 @@
-# Acquira — Phase 1 MVP
+# Acqment — Phase 1 MVP
 
 A pre-investment market risk screener. Search or browse a U.S. small business, see a risk verdict, signal breakdown, nearby competitors, and all of it anchored on an interactive 3D globe that zooms cinematically into a street-level map.
 
@@ -19,7 +19,7 @@ A pre-investment market risk screener. Search or browse a U.S. small business, s
 
 ## Complete setup (first time)
 
-Acquira has a frontend and a backend. You need both running.
+Acqment has a frontend and a backend. You need both running.
 
 ### 1. Install Git LFS (required for the large data files)
 
@@ -177,7 +177,7 @@ Full TypeScript types: `src/api/types.ts`.
 
 ## Mock mode (optional)
 
-For frontend work without running the backend, the mock and real clients expose an identical `AcquiraApi` interface (`src/api/types.ts`).
+For frontend work without running the backend, the mock and real clients expose an identical `AcqmentApi` interface (`src/api/types.ts`).
 
 ```env
 # .env.local

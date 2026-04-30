@@ -16,7 +16,7 @@ const jetbrains = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Acquira — pre-investment market risk screener",
+  title: "Acqment — pre-investment market risk screener",
   description:
     "Screen the market risk of any U.S. small business before you buy. Saturation, churn, and diversity — in one verdict.",
 };

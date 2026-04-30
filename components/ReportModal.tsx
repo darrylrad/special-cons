@@ -80,7 +80,7 @@ export default function ReportModal({ report, onClose, yelpData, isYelpLoading }
   function handleDownload() {
     const doc = buildPdf(enrichedReport, generated, aiSummary, yelpData ?? undefined);
     const slug = business.name.toLowerCase().replace(/\s+/g, "-");
-    doc.save(`acquira-report-${slug}.pdf`);
+    doc.save(`acqment-report-${slug}.pdf`);
   }
 
   return (
@@ -286,7 +286,7 @@ export default function ReportModal({ report, onClose, yelpData, isYelpLoading }
             </div>
 
             <footer className="mono pb-2 text-center text-[9px] uppercase tracking-[0.2em] text-slate-700">
-              Acquira · Risk Screen · Confidential
+              Acqment · Risk Screen · Confidential
             </footer>
           </div>
         </motion.div>

@@ -17,7 +17,7 @@ import { competitorEnrichedScore, scoreToVerdict } from "@/lib/scoring";
 
 declare global {
   interface Window {
-    __AcquiraGlobe?: import("@/components/Globe").GlobeHandle;
+    __AcqmentGlobe?: import("@/components/Globe").GlobeHandle;
   }
 }
 
@@ -213,8 +213,8 @@ export default function HomePage() {
     try {
       const report = await (await import("@/src/api")).api.getReport(r.fsq_place_id);
 
-      if (typeof window !== "undefined" && window.__AcquiraGlobe?.zoomToLocation) {
-        await window.__AcquiraGlobe.zoomToLocation(
+      if (typeof window !== "undefined" && window.__AcqmentGlobe?.zoomToLocation) {
+        await window.__AcqmentGlobe.zoomToLocation(
           report.business.latitude,
           report.business.longitude
         );
@@ -277,7 +277,7 @@ export default function HomePage() {
           </div>
           <div>
             <div className="text-sm font-semibold tracking-tight text-slate-100 transition group-hover:text-accent-200">
-              Acquira
+              Acqment
             </div>
             <div className="mono -mt-0.5 text-[9px] uppercase tracking-[0.2em] text-slate-500">
               Market risk screener

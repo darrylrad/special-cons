@@ -11,7 +11,7 @@ import GlobeGL from "react-globe.gl";
 
 declare global {
   interface Window {
-    __AcquiraGlobe?: GlobeHandle;
+    __AcqmentGlobe?: GlobeHandle;
   }
 }
 
@@ -151,11 +151,11 @@ useEffect(() => {
   if (forwardedRef && typeof forwardedRef === "object") {
     (forwardedRef as React.MutableRefObject<GlobeHandle | null>).current = handle;
   }
-  window.__AcquiraGlobe = handle;
+  window.__AcqmentGlobe = handle;
 
   return () => {
-    if (window.__AcquiraGlobe === handle) {
-      window.__AcquiraGlobe = undefined;
+    if (window.__AcqmentGlobe === handle) {
+      window.__AcqmentGlobe = undefined;
     }
   };
 }, [dims.w, dims.h]);
