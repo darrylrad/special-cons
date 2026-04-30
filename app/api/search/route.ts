@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import sql from "@/lib/db";
 
+export const maxDuration = 60;
+
 export async function GET(req: NextRequest) {
   const p = req.nextUrl.searchParams;
   const query    = p.get("q")?.trim()        ?? "";
