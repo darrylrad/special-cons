@@ -289,10 +289,15 @@ export default function ReportModal({ report, onClose, yelpData, isYelpLoading }
                   ))}
                 </div>
               )}
+              {aiInsight && (
+                <p className="mono mt-4 text-[9px] text-slate-600">
+                  Generated from the metrics above. Acqment does not claim exact profitability.
+                </p>
+              )}
             </div>
 
             <footer className="mono pb-2 text-center text-[9px] uppercase tracking-[0.2em] text-slate-700">
-              Acqment · Risk Screen · Confidential
+              Data: Foursquare · Yelp · ZIP-level records · internal model · Acqment AI
             </footer>
           </div>
         </motion.div>
