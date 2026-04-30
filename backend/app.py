@@ -3,7 +3,6 @@ from flask_cors import CORS
 import psycopg2
 import psycopg2.pool
 import os
-import math
 from contextlib import contextmanager
 
 app = Flask(__name__)
@@ -139,7 +138,7 @@ def report(place_id):
             'postcode': s('zip_clean'),
             'latitude': f('latitude', 0, 6),
             'longitude': f('longitude', 0, 6),
-            'category': s('primary_label'),
+            'category': b.get('level2') or b.get('level1') or '',
             'level1': s('level1'),
             'level2': s('level2'),
             'level3': s('level3'),
@@ -152,10 +151,10 @@ def report(place_id):
             'diversity': f('diversity_score', 0, 1),
         },
         'details': {
-            'competitors_nearby': i('same_category_count_radius'),
+            'competitors_in_zip': i('same_category_count_zip'),
             'historical_closure_rate': f('historical_closure_rate', 0, 3),
-            'avg_competitor_age_years': f('avg_same_category_age_radius', 0, 1),
-            'ecosystem_diversity': i('level2_diversity_radius'),
+            'avg_competitor_age_years': f('avg_same_category_age_zip', 0, 1),
+            'ecosystem_diversity': i('level2_diversity'),
             'population': i('population') if b.get('population') is not None else None,
             'businesses_per_10k': f('businesses_per_10k_people', 0, 2) if b.get('businesses_per_10k_people') is not None else None,
         }
@@ -165,17 +164,12 @@ def report(place_id):
 # ---------------------------------------------------------------------------
 # Endpoint 4: Nearby competitors
 # ---------------------------------------------------------------------------
-RADIUS_M = 1000
-# 1 km in degrees — lat delta is fixed, lng delta accounts for latitude shrinkage.
-# We use a slightly generous box (1.2x) so the bounding box never clips the circle edge.
-_LAT_DELTA = (RADIUS_M / 111_111) * 1.2
-
 @app.route('/api/competitors/<place_id>')
 def competitors(place_id):
     with get_conn() as conn:
         with conn.cursor() as cur:
             cur.execute(
-                "SELECT latitude, longitude, level2 FROM businesses WHERE fsq_place_id = %s LIMIT 1",
+                "SELECT zip_clean, level2 FROM businesses WHERE fsq_place_id = %s LIMIT 1",
                 (place_id,)
             )
             rows = _rows(cur)
@@ -184,15 +178,7 @@ def competitors(place_id):
                 return jsonify({'error': 'Not found'}), 404
 
             b = rows[0]
-            if b['latitude'] is None or b['longitude'] is None:
-                return jsonify([])
 
-            lat = float(b['latitude'])
-            lng = float(b['longitude'])
-            lng_delta = _LAT_DELTA / math.cos(math.radians(lat))
-
-            # Bounding box pre-filter uses indexed lat/lng columns to narrow candidates,
-            # then ST_DWithin does the precise 1 km circle check on the small result set.
             cur.execute("""
                 SELECT fsq_place_id, name, address, latitude, longitude,
                        date_created, level3, overall_score, verdict,
@@ -200,25 +186,9 @@ def competitors(place_id):
                 FROM businesses
                 WHERE fsq_place_id != %s
                   AND level2 = %s
-                  AND latitude  BETWEEN %s AND %s
-                  AND longitude BETWEEN %s AND %s
-                  AND ST_DWithin(
-                        ST_MakePoint(longitude::float, latitude::float)::geography,
-                        ST_MakePoint(%s, %s)::geography,
-                        %s
-                      )
-                ORDER BY ST_Distance(
-                        ST_MakePoint(longitude::float, latitude::float)::geography,
-                        ST_MakePoint(%s, %s)::geography
-                       ) ASC
+                  AND zip_clean = %s
                 LIMIT 20
-            """, (
-                place_id, b['level2'],
-                lat - _LAT_DELTA, lat + _LAT_DELTA,
-                lng - lng_delta,  lng + lng_delta,
-                lng, lat, RADIUS_M,
-                lng, lat,
-            ))
+            """, (place_id, b['level2'], b['zip_clean']))
             results = _rows(cur)
 
     return jsonify(results)

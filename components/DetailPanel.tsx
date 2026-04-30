@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import type { Competitor, Report, YelpData, YelpCompetitorMap } from "@/src/api";
-import { enrichedScore, scoreTone } from "@/lib/scoring";
+import { enrichedScore, scoreTone, scoreToVerdict } from "@/lib/scoring";
 import VerdictBadge from "./VerdictBadge";
 import ScoreBar from "./ScoreBar";
 import CompetitorList from "./CompetitorList";
@@ -144,7 +144,7 @@ function ReportBody({
   yelpCompetitors: YelpCompetitorMap;
 }) {
   const [showReport, setShowReport] = useState(false);
-  const { business, verdict, overall_score, scores, details } = report;
+  const { business, overall_score, scores, details } = report;
   const crumbs = business.category.split(">").map((s) => s.trim()).filter(Boolean);
 
   const finalScore = enrichedScore(overall_score, yelpData);
@@ -183,7 +183,7 @@ function ReportBody({
         </div>
 
         <div className="flex items-center gap-3">
-          <VerdictBadge verdict={verdict} />
+          <VerdictBadge verdict={scoreToVerdict(finalScore)} />
           <button
             onClick={() => setShowReport(true)}
             className="mono flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-4 py-2.5 text-[10px] uppercase tracking-[0.16em] text-slate-400 transition hover:border-accent-500/30 hover:bg-accent-500/10 hover:text-accent-300 active:scale-95"

@@ -16,6 +16,12 @@ export function competitorEnrichedScore(baseScore: number, yelp: YelpCompetitorD
   return Math.round((baseScore * 0.6 + yelpAvg * 0.4) * 10) / 10;
 }
 
+export function scoreToVerdict(score: number): import("@/src/api").Verdict {
+  if (score >= 65) return "PROCEED";
+  if (score >= 40) return "PROCEED WITH CAUTION";
+  return "AVOID";
+}
+
 export function scoreTone(score: number) {
   if (score >= 65) return {
     color: "text-verdict-proceed",

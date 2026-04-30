@@ -13,7 +13,7 @@ import { useReport } from "@/src/hooks/useReport";
 import { useCompetitors } from "@/src/hooks/useCompetitors";
 import { useToast } from "./providers";
 import type { SearchResult, SearchFilters, YelpCompetitorMap, YelpData } from "@/src/api";
-import { competitorEnrichedScore } from "@/lib/scoring";
+import { competitorEnrichedScore, scoreToVerdict } from "@/lib/scoring";
 
 declare global {
   interface Window {
@@ -192,7 +192,9 @@ export default function HomePage() {
             overallScore: c.overall_score !== undefined
               ? competitorEnrichedScore(c.overall_score, yelpCompetitors[c.fsq_place_id] ?? null)
               : undefined,
-            verdict: c.verdict,
+            verdict: c.overall_score !== undefined
+              ? scoreToVerdict(competitorEnrichedScore(c.overall_score, yelpCompetitors[c.fsq_place_id] ?? null))
+              : c.verdict,
             scores: c.scores,
           },
         });

@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { Report, YelpData } from "@/src/api/types";
 import { generateReport, buildPdf } from "@/lib/reportUtils";
-import { enrichedScore, scoreTone } from "@/lib/scoring";
+import { enrichedScore, scoreTone, scoreToVerdict } from "@/lib/scoring";
 import ScoreBar from "./ScoreBar";
 import VerdictBadge from "./VerdictBadge";
 
@@ -54,20 +54,22 @@ function StatRow({ label, value }: { label: string; value: string }) {
 }
 
 export default function ReportModal({ report, onClose, yelpData, isYelpLoading }: ReportModalProps) {
-  const { business, verdict, overall_score, scores, details } = report;
+  const { business, overall_score, scores, details } = report;
   const generated = generateReport(report);
   const [aiSummary, setAiSummary] = useState<string | null>(null);
   const [aiLoading, setAiLoading] = useState(true);
   const [aiError, setAiError] = useState(false);
 
   const finalScore = enrichedScore(overall_score, yelpData);
+  const finalVerdict = scoreToVerdict(finalScore);
   const tone = scoreTone(finalScore);
+  const enrichedReport = { ...report, verdict: finalVerdict, overall_score: finalScore };
 
   useEffect(() => {
     fetch("/api/generate-report", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...report, yelpData }),
+      body: JSON.stringify({ ...enrichedReport, yelpData }),
     })
       .then((r) => r.json())
       .then((data) => setAiSummary(data.summary))
@@ -76,7 +78,7 @@ export default function ReportModal({ report, onClose, yelpData, isYelpLoading }
   }, []);
 
   function handleDownload() {
-    const doc = buildPdf(report, generated, aiSummary, yelpData ?? undefined);
+    const doc = buildPdf(enrichedReport, generated, aiSummary, yelpData ?? undefined);
     const slug = business.name.toLowerCase().replace(/\s+/g, "-");
     doc.save(`acquira-report-${slug}.pdf`);
   }
@@ -130,7 +132,7 @@ export default function ReportModal({ report, onClose, yelpData, isYelpLoading }
             {/* Overall score */}
             <div className="flex items-center justify-between">
               <div>
-                <VerdictBadge verdict={verdict} />
+                <VerdictBadge verdict={finalVerdict} />
                 <div className="mono mt-3 text-[10px] uppercase tracking-[0.18em] text-slate-600">
                   {business.locality}, {business.region}
                 </div>
